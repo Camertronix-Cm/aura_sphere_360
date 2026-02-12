@@ -1,0 +1,164 @@
+package com.camertronix.panorama_viewer
+
+import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
+import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodCall
+import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
+
+class PanoramaViewerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
+    private lateinit var methodChannel: MethodChannel
+    private lateinit var eventChannel: EventChannel
+    private var eventSink: EventChannel.EventSink? = null
+    private val registeredPlayers = mutableMapOf<Long, VideoFrameExtractor>()
+    private val handler = Handler(Looper.getMainLooper())
+
+    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        methodChannel = MethodChannel(flutterPluginBinding.binaryMessenger, "panorama_viewer/video_frames")
+        methodChannel.setMethodCallHandler(this)
+
+        eventChannel = EventChannel(flutterPluginBinding.binaryMessenger, "panorama_viewer/video_frames_stream")
+        eventChannel.setStreamHandler(this)
+    }
+
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        methodChannel.setMethodCallHandler(null)
+        eventChannel.setStreamHandler(null)
+        
+        // Clean up all extractors
+        registeredPlayers.values.forEach { it.stop() }
+        registeredPlayers.clear()
+    }
+
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
+        when (call.method) {
+            "registerVideoPlayer" -> handleRegisterVideoPlayer(call, result)
+            "unregisterVideoPlayer" -> handleUnregisterVideoPlayer(call, result)
+            "getCurrentFrame" -> handleGetCurrentFrame(call, result)
+            else -> result.notImplemented()
+        }
+    }
+
+    private fun handleRegisterVideoPlayer(call: MethodCall, result: MethodChannel.Result) {
+        val textureId = call.argument<Long>("textureId")
+        if (textureId == null) {
+            result.error("INVALID_ARGS", "Missing textureId", null)
+            return
+        }
+
+        println("📱 Android: Registering video player with texture ID: $textureId")
+
+        val extractor = VideoFrameExtractor(textureId) { frameData ->
+            sendFrameToFlutter(frameData)
+        }
+
+        registeredPlayers[textureId] = extractor
+        extractor.start()
+
+        result.success(mapOf("success" to true, "message" to "Video player registered"))
+    }
+
+    private fun handleUnregisterVideoPlayer(call: MethodCall, result: MethodChannel.Result) {
+        val textureId = call.argument<Long>("textureId")
+        if (textureId == null) {
+            result.error("INVALID_ARGS", "Missing textureId", null)
+            return
+        }
+
+        println("📱 Android: Unregistering video player with texture ID: $textureId")
+
+        registeredPlayers[textureId]?.stop()
+        registeredPlayers.remove(textureId)
+
+        result.success(mapOf("success" to true))
+    }
+
+    private fun handleGetCurrentFrame(call: MethodCall, result: MethodChannel.Result) {
+        val textureId = call.argument<Long>("textureId")
+        if (textureId == null) {
+            result.error("INVALID_ARGS", "Missing textureId", null)
+            return
+        }
+
+        val extractor = registeredPlayers[textureId]
+        if (extractor == null) {
+            result.error("NOT_REGISTERED", "Video player not registered", null)
+            return
+        }
+
+        val frameData = extractor.getCurrentFrame()
+        result.success(frameData)
+    }
+
+    private fun sendFrameToFlutter(frameData: Map<String, Any>) {
+        handler.post {
+            eventSink?.success(frameData)
+        }
+    }
+
+    // EventChannel.StreamHandler implementation
+    override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+        eventSink = events
+    }
+
+    override fun onCancel(arguments: Any?) {
+        eventSink = null
+    }
+}
+
+class VideoFrameExtractor(
+    private val textureId: Long,
+    private val onFrameAvailable: (Map<String, Any>) -> Unit
+) {
+    private var isRunning = false
+    private val handler = Handler(Looper.getMainLooper())
+    private val frameRunnable = object : Runnable {
+        override fun run() {
+            if (isRunning) {
+                extractFrame()
+                handler.postDelayed(this, 16) // ~60 FPS
+            }
+        }
+    }
+
+    fun start() {
+        isRunning = true
+        handler.post(frameRunnable)
+        println("📱 Android: Started frame extraction at 60 FPS")
+    }
+
+    fun stop() {
+        isRunning = false
+        handler.removeCallbacks(frameRunnable)
+        println("📱 Android: Stopped frame extraction")
+    }
+
+    private fun extractFrame() {
+        // TODO: Extract actual frame from ExoPlayer
+        // For now, this is a placeholder
+        // In full implementation, we would:
+        // 1. Get ExoPlayer instance from video_player plugin
+        // 2. Use VideoFrameMetadataListener or SurfaceTexture
+        // 3. Convert frame to Bitmap
+        // 4. Compress to PNG/JPEG bytes
+        // 5. Send to Flutter
+
+        // Placeholder implementation
+        // In real implementation, extract frame here
+    }
+
+    fun getCurrentFrame(): Map<String, Any>? {
+        // TODO: Implement actual frame extraction
+        // This would access the current video frame from ExoPlayer
+        return null
+    }
+
+    private fun bitmapToBytes(bitmap: Bitmap): ByteArray {
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        return stream.toByteArray()
+    }
+}
