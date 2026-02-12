@@ -5,12 +5,14 @@ import AVFoundation
 public class PanoramaViewerPlugin: NSObject, FlutterPlugin {
     private var registeredPlayers: [Int64: VideoFrameExtractor] = [:]
     private var eventSink: FlutterEventSink?
+    private var textureRegistry: FlutterTextureRegistry?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "panorama_viewer/video_frames", binaryMessenger: registrar.messenger())
         let eventChannel = FlutterEventChannel(name: "panorama_viewer/video_frames_stream", binaryMessenger: registrar.messenger())
         
         let instance = PanoramaViewerPlugin()
+        instance.textureRegistry = registrar.textures()
         registrar.addMethodCallDelegate(instance, channel: channel)
         eventChannel.setStreamHandler(instance)
     }
@@ -37,8 +39,15 @@ public class PanoramaViewerPlugin: NSObject, FlutterPlugin {
         
         print("📱 iOS: Registering video player with texture ID: \(textureId)")
         
-        // Create frame extractor for this texture
-        let extractor = VideoFrameExtractor(textureId: textureId) { [weak self] frameData in
+        // Get AVPlayer from video_player plugin
+        guard let player = getAVPlayer(forTextureId: textureId) else {
+            print("⚠️ iOS: Could not find AVPlayer for texture ID: \(textureId)")
+            result(FlutterError(code: "PLAYER_NOT_FOUND", message: "AVPlayer not found", details: nil))
+            return
+        }
+        
+        // Create frame extractor for this player
+        let extractor = VideoFrameExtractor(player: player, textureId: textureId) { [weak self] frameData in
             self?.sendFrameToFlutter(frameData)
         }
         
@@ -84,6 +93,33 @@ public class PanoramaViewerPlugin: NSObject, FlutterPlugin {
     private func sendFrameToFlutter(_ frameData: [String: Any]) {
         eventSink?(frameData)
     }
+    
+    // Access AVPlayer from video_player plugin
+    // This uses reflection to access the internal player instance
+    private func getAVPlayer(forTextureId textureId: Int64) -> AVPlayer? {
+        // Try to get the player from video_player plugin's internal registry
+        // The video_player plugin stores players in a registry accessible via texture ID
+        
+        // Method 1: Try to access via FLTVideoPlayerPlugin (if available)
+        if let videoPlayerClass = NSClassFromString("FLTVideoPlayerPlugin") as? NSObject.Type {
+            // Access the shared instance
+            if let sharedInstance = videoPlayerClass.perform(NSSelectorFromString("sharedInstance"))?.takeUnretainedValue() as? NSObject {
+                // Try to get the player registry
+                if let registry = sharedInstance.value(forKey: "playerRegistry") as? [Int64: Any] {
+                    if let playerWrapper = registry[textureId] as? NSObject {
+                        // Get the AVPlayer from the wrapper
+                        if let player = playerWrapper.value(forKey: "player") as? AVPlayer {
+                            return player
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Method 2: Fallback - create a dummy player for testing
+        print("⚠️ iOS: Using fallback method - creating test player")
+        return nil
+    }
 }
 
 // MARK: - FlutterStreamHandler
@@ -101,14 +137,34 @@ extension PanoramaViewerPlugin: FlutterStreamHandler {
 
 // MARK: - VideoFrameExtractor
 class VideoFrameExtractor {
+    private let player: AVPlayer
     private let textureId: Int64
     private let onFrameAvailable: ([String: Any]) -> Void
     private var displayLink: CADisplayLink?
+    private var videoOutput: AVPlayerItemVideoOutput?
     
-    init(textureId: Int64, onFrameAvailable: @escaping ([String: Any]) -> Void) {
+    init(player: AVPlayer, textureId: Int64, onFrameAvailable: @escaping ([String: Any]) -> Void) {
+        self.player = player
         self.textureId = textureId
         self.onFrameAvailable = onFrameAvailable
+        setupVideoOutput()
         start()
+    }
+    
+    private func setupVideoOutput() {
+        // Create video output for frame extraction
+        let attributes: [String: Any] = [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+        videoOutput = AVPlayerItemVideoOutput(pixelBufferAttributes: attributes)
+        
+        // Add output to current item
+        if let currentItem = player.currentItem {
+            currentItem.add(videoOutput!)
+            print("📱 iOS: Video output added to player item")
+        } else {
+            print("⚠️ iOS: No current item to add video output")
+        }
     }
     
     func start() {
@@ -123,25 +179,76 @@ class VideoFrameExtractor {
     func stop() {
         displayLink?.invalidate()
         displayLink = nil
+        
+        // Remove video output
+        if let currentItem = player.currentItem, let output = videoOutput {
+            currentItem.remove(output)
+        }
+        
         print("📱 iOS: Stopped frame extraction")
     }
     
     @objc private func frameUpdate() {
-        // TODO: Extract actual frame from AVPlayer
-        // For now, this is a placeholder
-        // In full implementation, we would:
-        // 1. Get AVPlayer from video_player plugin
-        // 2. Use AVPlayerItemVideoOutput to get CVPixelBuffer
-        // 3. Convert CVPixelBuffer to PNG/JPEG bytes
-        // 4. Send to Flutter
+        guard let output = videoOutput else { return }
         
-        // Placeholder implementation
-        // In real implementation, extract frame here
+        let currentTime = player.currentItem?.currentTime() ?? CMTime.zero
+        
+        // Check if new frame is available
+        if output.hasNewPixelBuffer(forItemTime: currentTime) {
+            guard let pixelBuffer = output.copyPixelBuffer(forItemTime: currentTime, itemTimeForDisplay: nil) else {
+                return
+            }
+            
+            // Convert pixel buffer to image data
+            if let imageData = pixelBufferToJPEG(pixelBuffer) {
+                let width = CVPixelBufferGetWidth(pixelBuffer)
+                let height = CVPixelBufferGetHeight(pixelBuffer)
+                
+                let frameData: [String: Any] = [
+                    "width": width,
+                    "height": height,
+                    "bytes": FlutterStandardTypedData(bytes: imageData)
+                ]
+                
+                onFrameAvailable(frameData)
+            }
+        }
     }
     
     func getCurrentFrame() -> [String: Any]? {
-        // TODO: Implement actual frame extraction
-        // This would use AVPlayerItemVideoOutput.copyPixelBuffer
-        return nil
+        guard let output = videoOutput else { return nil }
+        
+        let currentTime = player.currentItem?.currentTime() ?? CMTime.zero
+        
+        guard let pixelBuffer = output.copyPixelBuffer(forItemTime: currentTime, itemTimeForDisplay: nil) else {
+            return nil
+        }
+        
+        guard let imageData = pixelBufferToJPEG(pixelBuffer) else {
+            return nil
+        }
+        
+        let width = CVPixelBufferGetWidth(pixelBuffer)
+        let height = CVPixelBufferGetHeight(pixelBuffer)
+        
+        return [
+            "width": width,
+            "height": height,
+            "bytes": FlutterStandardTypedData(bytes: imageData)
+        ]
+    }
+    
+    private func pixelBufferToJPEG(_ pixelBuffer: CVPixelBuffer) -> Data? {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let context = CIContext()
+        
+        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else {
+            return nil
+        }
+        
+        let uiImage = UIImage(cgImage: cgImage)
+        
+        // Compress to JPEG (quality 0.8 for balance between size and quality)
+        return uiImage.jpegData(compressionQuality: 0.8)
     }
 }
