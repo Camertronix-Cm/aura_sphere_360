@@ -97,8 +97,9 @@ class VideoTextureProvider extends PanoramaTextureProvider {
   Widget buildVideoWidget() {
     return RepaintBoundary(
       key: _videoKey,
-      child: AspectRatio(
-        aspectRatio: controller.value.aspectRatio,
+      child: SizedBox(
+        width: controller.value.size.width,
+        height: controller.value.size.height,
         child: VideoPlayer(controller),
       ),
     );

@@ -21,21 +21,38 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo> {
   }
 
   Future<void> _initializeVideo() async {
-    // Using a sample 360 video from the internet
-    // Replace with your own 360 video URL or asset
-    _videoController = VideoPlayerController.networkUrl(
-      Uri.parse(
-        'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
-      ),
-    );
+    try {
+      print('🎥 Starting video initialization...');
 
-    await _videoController.initialize();
-    _videoController.setLooping(true);
-    _videoController.play();
+      // Using a sample 360 video from the internet
+      // Replace with your own 360 video URL or asset
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(
+          'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
+        ),
+      );
 
-    setState(() {
-      _isInitialized = true;
-    });
+      print('🎥 Initializing video controller...');
+      await _videoController.initialize();
+      print('🎥 Video initialized successfully');
+      print('🎥 Video size: ${_videoController.value.size}');
+      print('🎥 Video duration: ${_videoController.value.duration}');
+
+      _videoController.setLooping(true);
+      _videoController.play();
+      print('🎥 Video playing');
+
+      setState(() {
+        _isInitialized = true;
+      });
+      print('🎥 State updated, should show panorama now');
+    } catch (e, stackTrace) {
+      print('❌ Error initializing video: $e');
+      print('❌ Stack trace: $stackTrace');
+      setState(() {
+        _isInitialized = false;
+      });
+    }
   }
 
   @override
@@ -46,34 +63,46 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo> {
 
   @override
   Widget build(BuildContext context) {
+    print('🏗️ Building ExampleScreenVideo, initialized: $_isInitialized');
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
-          IconButton(
-            icon: Icon(
-              _videoController.value.isPlaying ? Icons.pause : Icons.play_arrow,
+          if (_isInitialized)
+            IconButton(
+              icon: Icon(
+                _videoController.value.isPlaying
+                    ? Icons.pause
+                    : Icons.play_arrow,
+              ),
+              onPressed: () {
+                setState(() {
+                  if (_videoController.value.isPlaying) {
+                    _videoController.pause();
+                  } else {
+                    _videoController.play();
+                  }
+                });
+              },
             ),
-            onPressed: () {
-              setState(() {
-                if (_videoController.value.isPlaying) {
-                  _videoController.pause();
-                } else {
-                  _videoController.play();
-                }
-              });
-            },
-          ),
         ],
       ),
       body: _isInitialized
           ? PanoramaViewer(
               animSpeed: 0.0,
-              sensorControl: SensorControl.orientation,
+              sensorControl: SensorControl.none, // Disable sensor for testing
               videoPlayerController: _videoController,
             )
           : const Center(
-              child: CircularProgressIndicator(),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading video...'),
+                ],
+              ),
             ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,

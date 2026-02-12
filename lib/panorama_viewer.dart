@@ -367,10 +367,18 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   void _updateTextureFromProvider() async {
-    if (textureProvider == null || !textureProvider!.isReady) return;
+    if (textureProvider == null || !textureProvider!.isReady) {
+      print('⚠️ Texture provider not ready');
+      return;
+    }
 
     final frame = await textureProvider!.getCurrentFrame();
-    if (frame == null) return;
+    if (frame == null) {
+      print('⚠️ No frame available from provider');
+      return;
+    }
+
+    print('✅ Got frame: ${frame.width}x${frame.height}');
 
     surface?.mesh.texture = frame;
     surface?.mesh.textureRect = Rect.fromLTWH(
@@ -394,6 +402,8 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   Future<void> _initializeTextureProvider() async {
+    print('🔧 Initializing texture provider...');
+
     // Dispose old provider
     textureProvider?.removeListener(_updateTextureFromProvider);
     textureProvider?.dispose();
@@ -401,15 +411,21 @@ class PanoramaState extends State<PanoramaViewer>
 
     // Create appropriate provider based on input
     if (widget.videoPlayerController != null) {
+      print('🔧 Creating VideoTextureProvider');
       textureProvider = VideoTextureProvider(widget.videoPlayerController!);
     } else if (widget.child != null) {
+      print('🔧 Creating ImageTextureProvider');
       textureProvider = ImageTextureProvider(widget.child!.image);
     }
 
     if (textureProvider != null) {
+      print('🔧 Provider created, initializing...');
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
+      print('🔧 Provider initialized, isReady: ${textureProvider!.isReady}');
       _updateTextureFromProvider();
+    } else {
+      print('❌ No texture provider created!');
     }
   }
 
@@ -641,13 +657,14 @@ class PanoramaState extends State<PanoramaViewer>
             return buildHotspotWidgets(widget.hotspots);
           },
         ),
-        // Hidden video widget for frame capture (if using video)
+        // Video widget for frame capture (if using video)
+        // Must be in the widget tree at actual size but can be transparent
         if (textureProvider is VideoTextureProvider)
           Positioned(
-            left: -10000, // Off-screen
-            child: SizedBox(
-              width: 1,
-              height: 1,
+            bottom: 0,
+            right: 0,
+            child: Opacity(
+              opacity: 0.01, // Nearly invisible but still rendered
               child:
                   (textureProvider as VideoTextureProvider).buildVideoWidget(),
             ),
