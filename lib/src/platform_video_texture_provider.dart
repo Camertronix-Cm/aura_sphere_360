@@ -32,11 +32,13 @@ class PlatformVideoTextureProvider extends PanoramaTextureProvider {
 
     try {
       // Register the video player with native side
-      final textureId = controller.textureId;
-      print('🔌 Registering video texture ID: $textureId');
+      // Note: playerId is marked @visibleForTesting but is the only way to
+      // identify the player instance for native frame extraction
+      final playerId = controller.playerId;
+      print('🔌 Registering video player ID: $playerId');
 
       final result = await _channel.invokeMethod('registerVideoPlayer', {
-        'textureId': textureId,
+        'playerId': playerId,
       });
 
       print('🔌 Platform channel registration result: $result');
@@ -62,8 +64,6 @@ class PlatformVideoTextureProvider extends PanoramaTextureProvider {
       (dynamic event) async {
         if (event is Map) {
           // Receive frame data from native side
-          final width = event['width'] as int;
-          final height = event['height'] as int;
           final bytes = event['bytes'] as Uint8List;
 
           // Convert to ui.Image
@@ -95,7 +95,7 @@ class PlatformVideoTextureProvider extends PanoramaTextureProvider {
     // Otherwise, request a frame from native side
     try {
       final result = await _channel.invokeMethod('getCurrentFrame', {
-        'textureId': controller.textureId,
+        'playerId': controller.playerId,
       });
 
       if (result != null && result is Map) {
@@ -120,7 +120,7 @@ class PlatformVideoTextureProvider extends PanoramaTextureProvider {
     // Unregister from native side
     if (_isInitialized) {
       _channel.invokeMethod('unregisterVideoPlayer', {
-        'textureId': controller.textureId,
+        'playerId': controller.playerId,
       }).catchError((e) {
         print('❌ Failed to unregister video player: $e');
       });

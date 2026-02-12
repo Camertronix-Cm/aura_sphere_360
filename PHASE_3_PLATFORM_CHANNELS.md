@@ -129,18 +129,20 @@ surfaceTexture.setOnFrameAvailableListener {
 - Method channel setup
 - Event channel setup
 - Plugin registration (iOS & Android)
-- Basic frame extraction scaffolding
+- iOS native frame extraction (complete implementation)
+- Fixed API access: Using `playerId` instead of non-existent `textureId`
 
 ### 🚧 TODO (Next Steps)
 
 #### iOS
-1. Access AVPlayer instance from video_player plugin
-2. Implement AVPlayerItemVideoOutput integration
-3. Convert CVPixelBuffer to PNG/JPEG bytes
-4. Optimize memory management
+1. ✅ Access AVPlayer instance from video_player plugin (using playerId)
+2. ✅ Implement AVPlayerItemVideoOutput integration
+3. ✅ Convert CVPixelBuffer to JPEG bytes
+4. Test on device with actual video
+5. Optimize memory management
 
 #### Android
-1. Access ExoPlayer instance from video_player plugin
+1. Access ExoPlayer instance from video_player plugin (using playerId)
 2. Implement VideoFrameMetadataListener or SurfaceTexture
 3. Convert frame to Bitmap and compress
 4. Optimize memory management
@@ -207,9 +209,10 @@ flutter run --profile
 
 ## Known Limitations
 
-1. **Requires video_player internals**: Need to access AVPlayer/ExoPlayer instances
+1. **Requires video_player internals**: Uses `playerId` property (marked `@visibleForTesting`)
 2. **Platform-specific**: Different implementation for iOS/Android
 3. **Maintenance**: Must keep up with video_player plugin changes
+4. **AVPlayer access**: Requires reflection to access AVPlayer instance from video_player plugin
 
 ## Alternative Approaches
 
@@ -233,6 +236,12 @@ If accessing video_player internals is too complex:
 - [ExoPlayer VideoFrameMetadataListener](https://exoplayer.dev/doc/reference/com/google/android/exoplayer2/video/VideoFrameMetadataListener.html)
 - [video_player source](https://github.com/flutter/packages/tree/main/packages/video_player)
 
-## Phase 3 Status: 🚧 IN PROGRESS
+## Phase 3 Status: 🚧 READY FOR TESTING
 
-Platform channel infrastructure complete. Native frame extraction implementation in progress.
+Platform channel infrastructure complete. iOS native implementation complete. Ready for device testing to verify AVPlayer access.
+
+## API Resolution
+
+**Issue:** VideoPlayerController doesn't expose `textureId` property
+**Solution:** Use `playerId` property instead (marked `@visibleForTesting` but accessible)
+**Status:** ✅ Resolved - Code updated to use `playerId` throughout

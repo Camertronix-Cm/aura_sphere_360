@@ -32,53 +32,53 @@ public class PanoramaViewerPlugin: NSObject, FlutterPlugin {
     
     private func handleRegisterVideoPlayer(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let args = call.arguments as? [String: Any],
-              let textureId = args["textureId"] as? Int64 else {
-            result(FlutterError(code: "INVALID_ARGS", message: "Missing textureId", details: nil))
+              let playerId = args["playerId"] as? Int64 else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Missing playerId", details: nil))
             return
         }
         
-        print("📱 iOS: Registering video player with texture ID: \(textureId)")
+        print("📱 iOS: Registering video player with player ID: \(playerId)")
         
         // Get AVPlayer from video_player plugin
-        guard let player = getAVPlayer(forTextureId: textureId) else {
-            print("⚠️ iOS: Could not find AVPlayer for texture ID: \(textureId)")
+        guard let player = getAVPlayer(forPlayerId: playerId) else {
+            print("⚠️ iOS: Could not find AVPlayer for player ID: \(playerId)")
             result(FlutterError(code: "PLAYER_NOT_FOUND", message: "AVPlayer not found", details: nil))
             return
         }
         
         // Create frame extractor for this player
-        let extractor = VideoFrameExtractor(player: player, textureId: textureId) { [weak self] frameData in
+        let extractor = VideoFrameExtractor(player: player, playerId: playerId) { [weak self] frameData in
             self?.sendFrameToFlutter(frameData)
         }
         
-        registeredPlayers[textureId] = extractor
+        registeredPlayers[playerId] = extractor
         
         result(["success": true, "message": "Video player registered"])
     }
     
     private func handleUnregisterVideoPlayer(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let args = call.arguments as? [String: Any],
-              let textureId = args["textureId"] as? Int64 else {
-            result(FlutterError(code: "INVALID_ARGS", message: "Missing textureId", details: nil))
+              let playerId = args["playerId"] as? Int64 else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Missing playerId", details: nil))
             return
         }
         
-        print("📱 iOS: Unregistering video player with texture ID: \(textureId)")
+        print("📱 iOS: Unregistering video player with player ID: \(playerId)")
         
-        registeredPlayers[textureId]?.stop()
-        registeredPlayers.removeValue(forKey: textureId)
+        registeredPlayers[playerId]?.stop()
+        registeredPlayers.removeValue(forKey: playerId)
         
         result(["success": true])
     }
     
     private func handleGetCurrentFrame(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         guard let args = call.arguments as? [String: Any],
-              let textureId = args["textureId"] as? Int64 else {
-            result(FlutterError(code: "INVALID_ARGS", message: "Missing textureId", details: nil))
+              let playerId = args["playerId"] as? Int64 else {
+            result(FlutterError(code: "INVALID_ARGS", message: "Missing playerId", details: nil))
             return
         }
         
-        guard let extractor = registeredPlayers[textureId] else {
+        guard let extractor = registeredPlayers[playerId] else {
             result(FlutterError(code: "NOT_REGISTERED", message: "Video player not registered", details: nil))
             return
         }
@@ -96,9 +96,9 @@ public class PanoramaViewerPlugin: NSObject, FlutterPlugin {
     
     // Access AVPlayer from video_player plugin
     // This uses reflection to access the internal player instance
-    private func getAVPlayer(forTextureId textureId: Int64) -> AVPlayer? {
+    private func getAVPlayer(forPlayerId playerId: Int64) -> AVPlayer? {
         // Try to get the player from video_player plugin's internal registry
-        // The video_player plugin stores players in a registry accessible via texture ID
+        // The video_player plugin stores players in a registry accessible via player ID
         
         // Method 1: Try to access via FLTVideoPlayerPlugin (if available)
         if let videoPlayerClass = NSClassFromString("FLTVideoPlayerPlugin") as? NSObject.Type {
@@ -106,7 +106,7 @@ public class PanoramaViewerPlugin: NSObject, FlutterPlugin {
             if let sharedInstance = videoPlayerClass.perform(NSSelectorFromString("sharedInstance"))?.takeUnretainedValue() as? NSObject {
                 // Try to get the player registry
                 if let registry = sharedInstance.value(forKey: "playerRegistry") as? [Int64: Any] {
-                    if let playerWrapper = registry[textureId] as? NSObject {
+                    if let playerWrapper = registry[playerId] as? NSObject {
                         // Get the AVPlayer from the wrapper
                         if let player = playerWrapper.value(forKey: "player") as? AVPlayer {
                             return player
@@ -138,14 +138,14 @@ extension PanoramaViewerPlugin: FlutterStreamHandler {
 // MARK: - VideoFrameExtractor
 class VideoFrameExtractor {
     private let player: AVPlayer
-    private let textureId: Int64
+    private let playerId: Int64
     private let onFrameAvailable: ([String: Any]) -> Void
     private var displayLink: CADisplayLink?
     private var videoOutput: AVPlayerItemVideoOutput?
     
-    init(player: AVPlayer, textureId: Int64, onFrameAvailable: @escaping ([String: Any]) -> Void) {
+    init(player: AVPlayer, playerId: Int64, onFrameAvailable: @escaping ([String: Any]) -> Void) {
         self.player = player
-        self.textureId = textureId
+        self.playerId = playerId
         self.onFrameAvailable = onFrameAvailable
         setupVideoOutput()
         start()

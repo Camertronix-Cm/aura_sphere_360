@@ -11,6 +11,7 @@ import 'package:video_player/video_player.dart';
 import 'src/texture_provider.dart';
 import 'src/image_texture_provider.dart';
 import 'src/video_texture_provider.dart';
+import 'src/platform_video_texture_provider.dart';
 
 enum SensorControl {
   /// No sensor used.
@@ -411,17 +412,33 @@ class PanoramaState extends State<PanoramaViewer>
 
     // Create appropriate provider based on input
     if (widget.videoPlayerController != null) {
-      print('🔧 Creating VideoTextureProvider');
-      textureProvider = VideoTextureProvider(widget.videoPlayerController!);
+      // Try platform channels first for best performance (60 FPS)
+      try {
+        print('🔧 Attempting PlatformVideoTextureProvider (60 FPS)...');
+        textureProvider =
+            PlatformVideoTextureProvider(widget.videoPlayerController!);
+        textureProvider!.addListener(_updateTextureFromProvider);
+        await textureProvider!.initialize();
+        print(
+            '✅ Platform channels working! Using 60 FPS native frame extraction');
+      } catch (e) {
+        print('⚠️ Platform channels not available: $e');
+        print('🔧 Falling back to VideoTextureProvider (30 FPS)...');
+        textureProvider?.removeListener(_updateTextureFromProvider);
+        textureProvider?.dispose();
+        textureProvider = VideoTextureProvider(widget.videoPlayerController!);
+        textureProvider!.addListener(_updateTextureFromProvider);
+        await textureProvider!.initialize();
+        print('✅ Using screenshot-based approach at 30 FPS');
+      }
     } else if (widget.child != null) {
       print('🔧 Creating ImageTextureProvider');
       textureProvider = ImageTextureProvider(widget.child!.image);
+      textureProvider!.addListener(_updateTextureFromProvider);
+      await textureProvider!.initialize();
     }
 
     if (textureProvider != null) {
-      print('🔧 Provider created, initializing...');
-      textureProvider!.addListener(_updateTextureFromProvider);
-      await textureProvider!.initialize();
       print('🔧 Provider initialized, isReady: ${textureProvider!.isReady}');
       _updateTextureFromProvider();
     } else {
