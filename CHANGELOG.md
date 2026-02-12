@@ -1,3 +1,19 @@
+## 2.1.0
+* **NEW: Video Support** - Added support for 360° video panoramas
+  * Play local video files, network URLs, and asset videos
+  * Smooth 30 FPS video playback optimized for 360° viewing
+  * Full touch controls (pan, zoom, rotate) work with videos
+  * Sensor controls (gyroscope) work with videos
+  * Auto-scaling for videos larger than 1920x1080
+  * New `videoPlayerController` parameter for PanoramaViewer
+* **Architecture**: Clean texture provider abstraction
+  * Separate providers for images and videos
+  * Easy to extend for future sources (WebRTC, etc.)
+* **Dependencies**: Added video_player ^2.9.2
+* **Backward Compatible**: All existing image panorama code works unchanged
+* **Documentation**: Comprehensive guides and examples
+* **Tested**: iOS device tested and working, Android should work identically
+
 ## 2.0.7
 * Fixed black screen issue introduced in v2.0.6.  
 * Corrected scene initialization check (`surface == null`) to restore compatibility.

@@ -1,8 +1,9 @@
 name: panorama_viewer
-description: Panorama Viewer - A 360-degree panorama viewer reusable widget.
-# pub.dev using `flutter pub publish`.
-version: 2.0.7
-homepage: https://github.com/dariocavada/panorama_viewer
+description: A 360-degree panorama viewer widget with support for both images and videos. Features touch controls, sensor controls, and smooth 30 FPS video playback.
+version: 2.1.0
+homepage: https://github.com/Camertronix-Cm/panorama_viewer
+repository: https://github.com/Camertronix-Cm/panorama_viewer
+issue_tracker: https://github.com/Camertronix-Cm/panorama_viewer/issues
 
 environment:
   sdk: '>=3.5.3 <4.0.0'
