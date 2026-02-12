@@ -31,12 +31,15 @@ class PlatformVideoTextureProvider extends PanoramaTextureProvider {
     }
 
     try {
-      // Register the video player with native side
+      // video_player already creates a texture for rendering video
+      // We can access this texture directly using the playerId
       // Note: playerId is marked @visibleForTesting but is the only way to
-      // identify the player instance for native frame extraction
+      // identify the player's texture for native frame extraction
       final playerId = controller.playerId;
       print('🔌 Registering video player ID: $playerId');
 
+      // The video_player plugin already registers a texture with Flutter
+      // We just need to tell our native code which texture to extract frames from
       final result = await _channel.invokeMethod('registerVideoPlayer', {
         'playerId': playerId,
       });
