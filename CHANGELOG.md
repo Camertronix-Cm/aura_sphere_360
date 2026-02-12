@@ -1,3 +1,23 @@
+## 1.0.0 - Initial Release
+* **NEW: Aura Sphere 360** - Complete 360° panorama and video viewer
+  * Display 360° images with touch and sensor controls
+  * Play 360° videos with smooth 30 FPS playback
+  * Support for local files, network URLs, and asset videos
+  * Full touch controls (pan, zoom, rotate)
+  * Sensor controls (gyroscope) for immersive experience
+  * Auto-scaling for videos larger than 1920x1080
+  * Cross-platform support (iOS, Android, Web)
+* **Architecture**: Clean texture provider abstraction
+  * Separate providers for images and videos
+  * Easy to extend for future sources
+* **Dependencies**: Built on flutter_cube, dchs_motion_sensors, video_player
+* **Documentation**: Comprehensive guides and examples
+* **Tested**: iOS device tested and working
+
+---
+
+## Previous Versions (as panorama_viewer)
+
 ## 2.0.7
 * Fixed black screen issue introduced in v2.0.6.  
 * Corrected scene initialization check (`surface == null`) to restore compatibility.

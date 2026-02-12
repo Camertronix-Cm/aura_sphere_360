@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:panorama_viewer/panorama_viewer.dart';
+import 'package:aura_sphere_360/aura_sphere_360.dart';
 
 class ExampleScreen2 extends StatefulWidget {
   const ExampleScreen2({super.key, required this.title});
