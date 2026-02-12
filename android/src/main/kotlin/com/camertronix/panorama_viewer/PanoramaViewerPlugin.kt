@@ -43,47 +43,47 @@ class PanoramaViewerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Eve
     }
 
     private fun handleRegisterVideoPlayer(call: MethodCall, result: MethodChannel.Result) {
-        val textureId = call.argument<Long>("textureId")
-        if (textureId == null) {
-            result.error("INVALID_ARGS", "Missing textureId", null)
+        val playerId = call.argument<Long>("playerId")
+        if (playerId == null) {
+            result.error("INVALID_ARGS", "Missing playerId", null)
             return
         }
 
-        println("📱 Android: Registering video player with texture ID: $textureId")
+        println("📱 Android: Registering video player with player ID: $playerId")
 
-        val extractor = VideoFrameExtractor(textureId) { frameData ->
+        val extractor = VideoFrameExtractor(playerId) { frameData ->
             sendFrameToFlutter(frameData)
         }
 
-        registeredPlayers[textureId] = extractor
+        registeredPlayers[playerId] = extractor
         extractor.start()
 
         result.success(mapOf("success" to true, "message" to "Video player registered"))
     }
 
     private fun handleUnregisterVideoPlayer(call: MethodCall, result: MethodChannel.Result) {
-        val textureId = call.argument<Long>("textureId")
-        if (textureId == null) {
-            result.error("INVALID_ARGS", "Missing textureId", null)
+        val playerId = call.argument<Long>("playerId")
+        if (playerId == null) {
+            result.error("INVALID_ARGS", "Missing playerId", null)
             return
         }
 
-        println("📱 Android: Unregistering video player with texture ID: $textureId")
+        println("📱 Android: Unregistering video player with player ID: $playerId")
 
-        registeredPlayers[textureId]?.stop()
-        registeredPlayers.remove(textureId)
+        registeredPlayers[playerId]?.stop()
+        registeredPlayers.remove(playerId)
 
         result.success(mapOf("success" to true))
     }
 
     private fun handleGetCurrentFrame(call: MethodCall, result: MethodChannel.Result) {
-        val textureId = call.argument<Long>("textureId")
-        if (textureId == null) {
-            result.error("INVALID_ARGS", "Missing textureId", null)
+        val playerId = call.argument<Long>("playerId")
+        if (playerId == null) {
+            result.error("INVALID_ARGS", "Missing playerId", null)
             return
         }
 
-        val extractor = registeredPlayers[textureId]
+        val extractor = registeredPlayers[playerId]
         if (extractor == null) {
             result.error("NOT_REGISTERED", "Video player not registered", null)
             return
@@ -110,7 +110,7 @@ class PanoramaViewerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Eve
 }
 
 class VideoFrameExtractor(
-    private val textureId: Long,
+    private val playerId: Long,
     private val onFrameAvailable: (Map<String, Any>) -> Unit
 ) {
     private var isRunning = false
@@ -140,7 +140,7 @@ class VideoFrameExtractor(
         // TODO: Extract actual frame from ExoPlayer
         // For now, this is a placeholder
         // In full implementation, we would:
-        // 1. Get ExoPlayer instance from video_player plugin
+        // 1. Get ExoPlayer instance from video_player plugin using playerId
         // 2. Use VideoFrameMetadataListener or SurfaceTexture
         // 3. Convert frame to Bitmap
         // 4. Compress to PNG/JPEG bytes
