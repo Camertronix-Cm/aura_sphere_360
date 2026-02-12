@@ -1,7 +1,7 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
-import 'package:panorama_viewer/panorama_viewer.dart';
+import 'package:aura_sphere_360/aura_sphere_360.dart';
 
 class ExampleScreen3 extends StatefulWidget {
   const ExampleScreen3({super.key, this.title});

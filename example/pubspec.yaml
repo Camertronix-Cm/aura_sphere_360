@@ -13,7 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   video_player: ^2.9.2
 
-  panorama_viewer: 
+  aura_sphere_360: 
     path: ../
 
 dev_dependencies:

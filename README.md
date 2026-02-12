@@ -1,56 +1,54 @@
-# Panorama Viewer
+# Aura Sphere 360
 
-A 360-degree panorama viewer with support for both images and videos.
+Immersive 360° panorama and video viewer for Flutter. Perfect for VR experiences, virtual tours, and 360° media playback.
 
-This package is an updated porting of the plugin https://github.com/zesage/panorama with added video support.
+[![pub package](https://img.shields.io/pub/v/aura_sphere_360.svg)](https://pub.dev/packages/aura_sphere_360)
 
-## Features
+## ✨ Features
 
 - ✅ 360° image panoramas
-- ✅ 360° video panoramas (NEW!)
+- ✅ 360° video panoramas
 - ✅ Touch controls (pan, zoom, rotate)
 - ✅ Sensor controls (gyroscope)
-- ✅ Cross-platform (iOS, Android, Web)
 - ✅ Smooth 30 FPS video playback
+- ✅ Cross-platform (iOS, Android, Web)
+- ✅ Easy integration
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Installation
 
-Add panorama_viewer as a dependency in your pubspec.yaml file.
+Add aura_sphere_360 to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  panorama_viewer:
-    git:
-      url: https://github.com/Camertronix-Cm/panorama_viewer.git
-      ref: feature/video-support
-  video_player: ^2.9.2  # Required for video support
+  aura_sphere_360: ^1.0.0
+```
+
+Then run:
+```bash
+flutter pub get
 ```
 
 ### Image Panoramas
 
-Import and add the Panorama Viewer widget to your project.
-
 ```dart
-import 'package:panorama_viewer/panorama_viewer.dart';
+import 'package:aura_sphere_360/aura_sphere_360.dart';
 
 @override
 Widget build(BuildContext context) {
   return Scaffold(
-    body: Center(
-      child: PanoramaViewer(
-        child: Image.asset('assets/panorama360.jpg'),
-      ),
+    body: AuraSphere(
+      child: Image.asset('assets/panorama360.jpg'),
     ),
   );
 }
 ```
 
-### Video Panoramas (NEW!)
+### Video Panoramas
 
 ```dart
-import 'package:panorama_viewer/panorama_viewer.dart';
+import 'package:aura_sphere_360/aura_sphere_360.dart';
 import 'package:video_player/video_player.dart';
 
 class VideoPanoramaScreen extends StatefulWidget {
@@ -84,7 +82,7 @@ class _VideoPanoramaScreenState extends State<VideoPanoramaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _initialized
-          ? PanoramaViewer(
+          ? AuraSphere(
               videoPlayerController: _controller,
               sensorControl: SensorControl.orientation,
             )
@@ -100,33 +98,58 @@ class _VideoPanoramaScreenState extends State<VideoPanoramaScreen> {
 }
 ```
 
-## Video Support Details
+## 🎮 Controls
+
+### Touch Controls
+- **Pan**: Drag to look around
+- **Zoom**: Pinch to zoom in/out
+- **Rotate**: Two-finger rotate
+
+### Sensor Controls
+- **Gyroscope**: Move your device to look around
+- **Orientation**: Automatic orientation tracking
+
+## 📱 Supported Platforms
+
+- ✅ iOS
+- ✅ Android
+- ✅ Web (without sensor controls)
+
+## 🎥 Video Support
 
 - **Frame Rate**: 30 FPS (smooth for 360° viewing)
 - **Supported Sources**: Local files, network URLs, assets
-- **Platforms**: iOS and Android
 - **Performance**: Optimized for videos up to 1920x1080
 - **Auto-scaling**: Larger videos are automatically scaled
 
-## Migration from the Panorama package
+## 📚 Documentation
 
-- In the dependencies, use `panorama_viewer` instead of `panorama`.
-- In the Dart files where you use panorama, change the import to: `import 'package:panorama_viewer/panorama_viewer.dart';`.
-- Change the widget name from `Panorama` to `PanoramaViewer`.
-- If you've used `SensorControl`, change `SensorControl.Orientation` to `SensorControl.orientation`. All constant names are now in lower camel case, following the latest Dart best practices.
+- [Quick Start Guide](https://github.com/Camertronix-Cm/aura_sphere_360/blob/main/QUICK_START.md)
+- [Deployment Guide](https://github.com/Camertronix-Cm/aura_sphere_360/blob/main/DEPLOYMENT_GUIDE.md)
+- [API Documentation](https://pub.dev/documentation/aura_sphere_360/latest/)
 
-## Web implementation
+## 💡 Examples
 
-On the web, sensors are not utilized because the sensor library used is only compatible with iOS and Android devices. Additionally, on some Android devices, if the panoramic image is too large, nothing is displayed. When checking the console log remotely, you may encounter WebGL errors or warnings.
+Check out the `example` folder for complete working examples:
+- Image panoramas
+- Video panoramas
+- Custom controls
+- Sensor integration
 
-## Examples
+## 🤝 Contributing
 
-See the `example` folder for complete working examples of both image and video panoramas.
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## 📄 License
 
 Apache 2.0
 
+## 🙏 Credits
 
+Built on top of the excellent [panorama_viewer](https://pub.dev/packages/panorama_viewer) package by dariocavada, with added video support and enhancements.
 
+## 🔗 Links
 
+- [GitHub Repository](https://github.com/Camertronix-Cm/aura_sphere_360)
+- [Issue Tracker](https://github.com/Camertronix-Cm/aura_sphere_360/issues)
+- [Pub.dev Package](https://pub.dev/packages/aura_sphere_360)
