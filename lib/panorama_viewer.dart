@@ -6,6 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cube/flutter_cube.dart';
 import 'package:dchs_motion_sensors/dchs_motion_sensors.dart';
+import 'package:video_player/video_player.dart';
+
+import 'src/texture_provider.dart';
+import 'src/image_texture_provider.dart';
+import 'src/video_texture_provider.dart';
 
 enum SensorControl {
   /// No sensor used.
@@ -47,9 +52,13 @@ class PanoramaViewer extends StatefulWidget {
     this.onLongPressEnd,
     this.onImageLoad,
     this.child,
+    this.videoPlayerController,
     this.hotspots,
     this.panoramaController,
-  });
+  }) : assert(
+          child == null || videoPlayerController == null,
+          'Cannot provide both child and videoPlayerController',
+        );
 
   /// The initial latitude, in degrees, between -90 and 90. default to 0 (the vertical center of the image).
   final double latitude;
@@ -132,6 +141,9 @@ class PanoramaViewer extends StatefulWidget {
   /// Specify an Image(equirectangular image) widget to the panorama.
   final Image? child;
 
+  /// Video player controller for video panoramas (alternative to child)
+  final VideoPlayerController? videoPlayerController;
+
   /// Place widgets in the panorama.
   final List<Hotspot>? hotspots;
 
@@ -146,6 +158,7 @@ class PanoramaState extends State<PanoramaViewer>
     with SingleTickerProviderStateMixin {
   Scene? scene;
   Object? surface;
+  PanoramaTextureProvider? textureProvider;
   late double latitudeRad;
   late double longitudeRad;
   double latitudeDelta = 0;
@@ -353,12 +366,51 @@ class PanoramaState extends State<PanoramaViewer>
     widget.onImageLoad?.call();
   }
 
+  void _updateTextureFromProvider() async {
+    if (textureProvider == null || !textureProvider!.isReady) return;
+
+    final frame = await textureProvider!.getCurrentFrame();
+    if (frame == null) return;
+
+    surface?.mesh.texture = frame;
+    surface?.mesh.textureRect = Rect.fromLTWH(
+      0,
+      0,
+      frame.width.toDouble(),
+      frame.height.toDouble(),
+    );
+    if (scene == null) return;
+    scene!.texture = frame;
+    scene!.updateTexture();
+    widget.onImageLoad?.call();
+  }
+
   void _loadTexture(ImageProvider? provider) {
     if (provider == null) return;
     _imageStream?.removeListener(ImageStreamListener(_updateTexture));
     _imageStream = provider.resolve(const ImageConfiguration());
     ImageStreamListener listener = ImageStreamListener(_updateTexture);
     _imageStream?.addListener(listener);
+  }
+
+  Future<void> _initializeTextureProvider() async {
+    // Dispose old provider
+    textureProvider?.removeListener(_updateTextureFromProvider);
+    textureProvider?.dispose();
+    textureProvider = null;
+
+    // Create appropriate provider based on input
+    if (widget.videoPlayerController != null) {
+      textureProvider = VideoTextureProvider(widget.videoPlayerController!);
+    } else if (widget.child != null) {
+      textureProvider = ImageTextureProvider(widget.child!.image);
+    }
+
+    if (textureProvider != null) {
+      textureProvider!.addListener(_updateTextureFromProvider);
+      await textureProvider!.initialize();
+      _updateTextureFromProvider();
+    }
   }
 
   void _onSceneCreated(Scene scene) {
@@ -368,7 +420,8 @@ class PanoramaState extends State<PanoramaViewer>
     scene.camera.fov = 75;
     scene.camera.zoom = widget.zoom;
     scene.camera.position.setFrom(Vector3(0, 0, 0.1));
-    if (widget.child != null && surface == null) {
+    if ((widget.child != null || widget.videoPlayerController != null) &&
+        surface == null) {
       final Mesh mesh = generateSphereMesh(
           radius: _radius,
           latSegments: widget.latSegments,
@@ -377,7 +430,10 @@ class PanoramaState extends State<PanoramaViewer>
           croppedFullWidth: widget.croppedFullWidth,
           croppedFullHeight: widget.croppedFullHeight);
       surface = Object(name: 'surface', mesh: mesh, backfaceCulling: false);
-      _loadTexture(widget.child!.image);
+
+      // Initialize texture provider
+      _initializeTextureProvider();
+
       scene.world.add(surface!);
       _updateView();
     }
@@ -480,6 +536,8 @@ class PanoramaState extends State<PanoramaViewer>
   @override
   void dispose() {
     _imageStream?.removeListener(ImageStreamListener(_updateTexture));
+    textureProvider?.removeListener(_updateTextureFromProvider);
+    textureProvider?.dispose();
     _orientationSubscription?.cancel();
     _screenOrientSubscription?.cancel();
     _controller.dispose();
@@ -583,6 +641,17 @@ class PanoramaState extends State<PanoramaViewer>
             return buildHotspotWidgets(widget.hotspots);
           },
         ),
+        // Hidden video widget for frame capture (if using video)
+        if (textureProvider is VideoTextureProvider)
+          Positioned(
+            left: -10000, // Off-screen
+            child: SizedBox(
+              width: 1,
+              height: 1,
+              child:
+                  (textureProvider as VideoTextureProvider).buildVideoWidget(),
+            ),
+          ),
       ],
     );
 
