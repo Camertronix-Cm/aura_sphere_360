@@ -1,3 +1,21 @@
+## 1.1.0 - Phase 4: WebRTC Support
+* **NEW: WebRTC Live Streaming** - Stream live 360° video via WebRTC
+  * Added `webrtcRenderer` parameter to PanoramaViewer
+  * Support for RTCVideoRenderer from flutter_webrtc
+  * Real-time 360° video streaming at 30 FPS
+  * Works with any WebRTC source (local camera, remote peers)
+  * Same touch and sensor controls as video playback
+  * Automatic frame extraction using RepaintBoundary
+* **API Enhancement**: Source validation
+  * Only one source allowed (child, videoPlayerController, or webrtcRenderer)
+  * Clear error messages for invalid configurations
+* **Example**: Added WebRTC live streaming example
+  * Demonstrates local camera stream in 360°
+  * Shows connection state management
+  * Includes UI controls and status indicators
+* **Documentation**: Updated README with WebRTC usage
+* **Dependencies**: Added flutter_webrtc ^0.11.7
+
 ## 1.0.1 - Bug Fix Release
 * **FIXED**: Video initial frame white screen bug
   * Fixed race condition where panorama rendered before first video frame was captured

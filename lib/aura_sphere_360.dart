@@ -6,6 +6,7 @@
 /// ## Features
 /// - Display 360° images
 /// - Play 360° videos at 30 FPS
+/// - Stream live 360° video via WebRTC
 /// - Touch controls (pan, zoom, rotate)
 /// - Sensor controls (gyroscope)
 /// - Cross-platform support
@@ -29,6 +30,18 @@
 ///   sensorControl: SensorControl.orientation,
 /// )
 /// ```
+///
+/// ### WebRTC Live Streaming
+/// ```dart
+/// final renderer = RTCVideoRenderer();
+/// await renderer.initialize();
+/// renderer.srcObject = stream;
+///
+/// AuraSphere(
+///   webrtcRenderer: renderer,
+///   sensorControl: SensorControl.orientation,
+/// )
+/// ```
 library;
 
 // Export all public APIs
@@ -39,6 +52,9 @@ export 'panorama_viewer.dart'
         PanoramaController,
         Hotspot,
         SensorControl;
+
+// Re-export flutter_webrtc for convenience
+export 'package:flutter_webrtc/flutter_webrtc.dart' show RTCVideoRenderer;
 
 // Import for typedef
 import 'panorama_viewer.dart' show PanoramaViewer;

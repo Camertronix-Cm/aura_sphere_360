@@ -8,6 +8,7 @@ Immersive 360° panorama and video viewer for Flutter. Perfect for VR experience
 
 - ✅ 360° image panoramas
 - ✅ 360° video panoramas
+- ✅ WebRTC live streaming (NEW)
 - ✅ Touch controls (pan, zoom, rotate)
 - ✅ Sensor controls (gyroscope)
 - ✅ Smooth 30 FPS video playback
@@ -98,6 +99,67 @@ class _VideoPanoramaScreenState extends State<VideoPanoramaScreen> {
 }
 ```
 
+### WebRTC Live Streaming (NEW)
+
+**Important:** WebRTC requires additional setup. See [WEBRTC_SETUP_GUIDE.md](WEBRTC_SETUP_GUIDE.md) for detailed instructions.
+
+**Resolution:** The panorama viewer automatically uses the incoming stream's resolution. No configuration needed - works with any resolution from 720p to 8K!
+
+```dart
+import 'package:aura_sphere_360/aura_sphere_360.dart';
+
+class WebRTCPanoramaScreen extends StatefulWidget {
+  @override
+  _WebRTCPanoramaScreenState createState() => _WebRTCPanoramaScreenState();
+}
+
+class _WebRTCPanoramaScreenState extends State<WebRTCPanoramaScreen> {
+  RTCVideoRenderer? _renderer;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeWebRTC();
+  }
+
+  Future<void> _initializeWebRTC() async {
+    _renderer = RTCVideoRenderer();
+    await _renderer!.initialize();
+    
+    // Connect to your WebRTC stream
+    // This is a simplified example - you'll need proper signaling
+    final stream = await navigator.mediaDevices.getUserMedia({
+      'video': true,
+      'audio': false,
+    });
+    
+    _renderer!.srcObject = stream;
+    setState(() => _initialized = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _initialized
+          ? AuraSphere(
+              webrtcRenderer: _renderer,
+              sensorControl: SensorControl.orientation,
+            )
+          : Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _renderer?.dispose();
+    super.dispose();
+  }
+}
+```
+
+For real-world integration with remote WebRTC peers (like 360° cameras), see the [WebRTC Setup Guide](WEBRTC_SETUP_GUIDE.md).
+
 ## 🎮 Controls
 
 ### Touch Controls
@@ -115,12 +177,19 @@ class _VideoPanoramaScreenState extends State<VideoPanoramaScreen> {
 - ✅ Android
 - ✅ Web (without sensor controls)
 
-## 🎥 Video Support
+## 🎥 Video & Streaming Support
 
+### Video Playback
 - **Frame Rate**: 30 FPS (smooth for 360° viewing)
 - **Supported Sources**: Local files, network URLs, assets
 - **Performance**: Optimized for videos up to 1920x1080
 - **Auto-scaling**: Larger videos are automatically scaled
+
+### WebRTC Live Streaming (NEW)
+- **Real-time**: Live 360° video streaming
+- **Low Latency**: Optimized for real-time applications
+- **Flexible**: Works with any WebRTC source
+- **Use Cases**: Live events, remote tours, video conferencing
 
 ## 📚 Documentation
 
@@ -133,6 +202,7 @@ class _VideoPanoramaScreenState extends State<VideoPanoramaScreen> {
 Check out the `example` folder for complete working examples:
 - Image panoramas
 - Video panoramas
+- WebRTC live streaming
 - Custom controls
 - Sensor integration
 
