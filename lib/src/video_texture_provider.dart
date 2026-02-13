@@ -32,19 +32,23 @@ class VideoTextureProvider extends PanoramaTextureProvider {
     }
     _isInitialized = true;
 
-    // Start frame extraction timer
-    // TODO: Replace with platform channel implementation for better performance
+    // Start frame extraction immediately
+    // This ensures we capture frames even when video is paused
     _startFrameExtraction();
 
     // Listen to video player state changes
     controller.addListener(_onVideoStateChanged);
+
+    // Extract first frame immediately
+    await Future.delayed(const Duration(milliseconds: 100));
+    _extractFrame();
   }
 
   void _onVideoStateChanged() {
-    if (controller.value.isPlaying && _frameTimer == null) {
+    // Keep frame extraction running regardless of play/pause state
+    // This ensures panorama updates even when video is paused
+    if (_frameTimer == null) {
       _startFrameExtraction();
-    } else if (!controller.value.isPlaying && _frameTimer != null) {
-      _stopFrameExtraction();
     }
   }
 
