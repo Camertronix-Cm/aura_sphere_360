@@ -10,13 +10,15 @@ class ExampleScreenVideo extends StatefulWidget {
   ExampleScreenVideoState createState() => ExampleScreenVideoState();
 }
 
-class ExampleScreenVideoState extends State<ExampleScreenVideo> {
+class ExampleScreenVideoState extends State<ExampleScreenVideo>
+    with WidgetsBindingObserver {
   late VideoPlayerController _videoController;
   bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeVideo();
   }
 
@@ -65,8 +67,33 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _videoController.pause();
     _videoController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isInitialized) return;
+
+    if (state == AppLifecycleState.paused) {
+      // App going to background - pause video
+      _videoController.pause();
+    } else if (state == AppLifecycleState.resumed) {
+      // App returning to foreground - optionally resume playback
+      // Uncomment if you want auto-resume:
+      // _videoController.play();
+    }
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    // Handle hot reload - pause video to prevent background playback
+    if (_isInitialized) {
+      _videoController.pause();
+    }
   }
 
   @override
