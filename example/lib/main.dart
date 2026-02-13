@@ -2,6 +2,7 @@
 
 import 'package:example/screens/example_screen_5.dart';
 import 'package:example/screens/example_screen_video.dart';
+import 'package:example/screens/example_screen_file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'screens/example_screen_1.dart';
@@ -111,6 +112,21 @@ class MainScreen extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (context) => const ExampleScreenVideo(
                     title: 'Video Panorama',
+                  ),
+                ),
+              );
+            },
+          ),
+          ListTile(
+            title: const Text('Example 7 - File Picker Test (NEW)'),
+            subtitle: const Text('Test with your own videos/images'),
+            leading: const Icon(Icons.folder_open, color: Colors.green),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ExampleScreenFilePicker(
+                    title: 'File Picker Test',
                   ),
                 ),
               );

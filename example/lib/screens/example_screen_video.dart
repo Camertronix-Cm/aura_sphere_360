@@ -24,13 +24,21 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo> {
     try {
       print('🎥 Starting video initialization...');
 
-      // Using a sample 360 video from the internet
-      // Replace with your own 360 video URL or asset
+      // Option 1: Use asset video (uncomment and add video to assets folder)
+      // _videoController = VideoPlayerController.asset('assets/video360.mp4');
+
+      // Option 2: Use network video (currently active)
       _videoController = VideoPlayerController.networkUrl(
         Uri.parse(
           'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
         ),
       );
+
+      // Option 3: Use local file (uncomment to test with local file)
+      // import 'dart:io';
+      // _videoController = VideoPlayerController.file(
+      //   File('/path/to/your/video.mp4'),
+      // );
 
       print('🎥 Initializing video controller...');
       await _videoController.initialize();
