@@ -54,8 +54,17 @@ class ExampleScreenFilePickerState extends State<ExampleScreenFilePicker>
   void reassemble() {
     super.reassemble();
     // Handle hot reload - pause video to prevent background playback
+    debugPrint('🔄 [ExampleScreenFilePicker] Hot Reload detected (reassemble)');
     if (_isInitialized && _isVideo && _videoController != null) {
-      _videoController!.pause();
+      debugPrint('🔄 [ExampleScreenFilePicker] Pausing video controller...');
+      _videoController!.pause().then((_) {
+        debugPrint('🔄 [ExampleScreenFilePicker] Video paused successfully');
+      }).catchError((e) {
+        debugPrint('🔄 [ExampleScreenFilePicker] Error pausing video: $e');
+      });
+    } else {
+      debugPrint(
+          '🔄 [ExampleScreenFilePicker] Skipped pause: init=$_isInitialized, video=$_isVideo, controller=${_videoController != null}');
     }
   }
 

@@ -367,19 +367,11 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   void _updateTextureFromProvider() async {
-    if (textureProvider == null || !textureProvider!.isReady) {
-      debugPrint('Texture provider not ready');
-      return;
-    }
+    if (textureProvider == null || !textureProvider!.isReady) return;
 
     final frame = await textureProvider!.getCurrentFrame();
-    if (frame == null) {
-      debugPrint('No frame available from texture provider');
-      return;
-    }
+    if (frame == null) return;
 
-    debugPrint(
-        'Updating texture from provider: ${frame.width}x${frame.height}');
     surface?.mesh.texture = frame;
     surface?.mesh.textureRect = Rect.fromLTWH(
       0,
@@ -402,6 +394,8 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   Future<void> _initializeTextureProvider() async {
+    debugPrint('🌐 [PanoramaState] _initializeTextureProvider() called');
+
     // Dispose old provider
     textureProvider?.removeListener(_updateTextureFromProvider);
     textureProvider?.dispose();
@@ -409,10 +403,39 @@ class PanoramaState extends State<PanoramaViewer>
 
     // Create appropriate provider based on input
     if (widget.videoPlayerController != null) {
+      debugPrint('🌐 [PanoramaState] Creating VideoTextureProvider...');
       textureProvider = VideoTextureProvider(widget.videoPlayerController!);
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
+
+      // CRITICAL FIX: Trigger a rebuild so the video widget (RepaintBoundary)
+      // gets placed in the widget tree. Without this, the build() method's
+      // "if (textureProvider is VideoTextureProvider)" check is false on the
+      // first build, and the video widget never enters the tree.
+      debugPrint(
+          '🌐 [PanoramaState] Triggering setState to add video widget to tree...');
+      if (mounted) {
+        setState(() {});
+      }
+
+      // Wait for the widget tree to actually rebuild and render the video widget
+      final completer = Completer<void>();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        debugPrint(
+            '🌐 [PanoramaState] Post-frame callback: video widget should now be in tree');
+        if (!completer.isCompleted) completer.complete();
+      });
+      await completer.future;
+
+      // Now the video widget is in the tree, start frame extraction
+      final videoProvider = textureProvider as VideoTextureProvider;
+      debugPrint(
+          '🌐 [PanoramaState] Video widget context: ${videoProvider.videoKey.currentContext != null ? "EXISTS" : "NULL"}');
+      await videoProvider.startFrameExtractionAndWaitForFirstFrame();
+
+      debugPrint('🌐 [PanoramaState] Video texture provider fully ready');
     } else if (widget.child != null) {
+      debugPrint('🌐 [PanoramaState] Creating ImageTextureProvider...');
       textureProvider = ImageTextureProvider(widget.child!.image);
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
@@ -424,6 +447,7 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   void _onSceneCreated(Scene scene) {
+    debugPrint('🌐 [PanoramaState] _onSceneCreated called');
     this.scene = scene;
     scene.camera.near = 1.0;
     scene.camera.far = _radius + 1.0;
@@ -432,6 +456,8 @@ class PanoramaState extends State<PanoramaViewer>
     scene.camera.position.setFrom(Vector3(0, 0, 0.1));
     if ((widget.child != null || widget.videoPlayerController != null) &&
         surface == null) {
+      debugPrint(
+          '🌐 [PanoramaState] Creating surface mesh and initializing texture provider');
       final Mesh mesh = generateSphereMesh(
           radius: _radius,
           latSegments: widget.latSegments,
@@ -575,9 +601,19 @@ class PanoramaState extends State<PanoramaViewer>
     if (widget.child?.image != oldWidget.child?.image) {
       _loadTexture(widget.child?.image);
     }
+    if (widget.videoPlayerController != oldWidget.videoPlayerController) {
+      _initializeTextureProvider();
+    }
     if (widget.sensorControl != oldWidget.sensorControl) {
       _updateSensorControl();
     }
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    // On Hot Reload, ensure we pause frame extraction or reset state if needed
+    // The parent widget is responsible for pausing the video controller
   }
 
   void _panoramaControllerFunctions() {
@@ -642,8 +678,23 @@ class PanoramaState extends State<PanoramaViewer>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint(
+        '🌐 [PanoramaState] build() called, textureProvider is VideoTextureProvider: ${textureProvider is VideoTextureProvider}');
     Widget pano = Stack(
       children: [
+        // Video widget for frame capture (if using video)
+        // Must be in the widget tree at actual size but still rendered
+        // We place it first (at the bottom) so it's behind the Cube
+        if (textureProvider is VideoTextureProvider)
+          Positioned(
+            left: 0,
+            top: 0,
+            child: Opacity(
+              opacity: 0.01, // Nearly invisible but still rendered
+              child:
+                  (textureProvider as VideoTextureProvider).buildVideoWidget(),
+            ),
+          ),
         Cube(interactive: false, onSceneCreated: _onSceneCreated),
         StreamBuilder(
           stream: _stream,
@@ -651,18 +702,6 @@ class PanoramaState extends State<PanoramaViewer>
             return buildHotspotWidgets(widget.hotspots);
           },
         ),
-        // Video widget for frame capture (if using video)
-        // Must be in the widget tree at actual size but can be transparent
-        if (textureProvider is VideoTextureProvider)
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Opacity(
-              opacity: 0.01, // Nearly invisible but still rendered
-              child:
-                  (textureProvider as VideoTextureProvider).buildVideoWidget(),
-            ),
-          ),
       ],
     );
 
