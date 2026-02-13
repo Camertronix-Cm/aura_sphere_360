@@ -32,16 +32,20 @@ class VideoTextureProvider extends PanoramaTextureProvider {
     }
     _isInitialized = true;
 
-    // Start frame extraction immediately
-    // This ensures we capture frames even when video is paused
-    _startFrameExtraction();
-
     // Listen to video player state changes
     controller.addListener(_onVideoStateChanged);
 
-    // Extract first frame immediately
+    // Extract first frame BEFORE starting periodic extraction
+    // This ensures we have a frame ready before the panorama tries to render
     await Future.delayed(const Duration(milliseconds: 100));
-    _extractFrame();
+    await _extractFrame();
+
+    // Wait a bit more to ensure the frame is captured
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    // Start frame extraction for continuous updates
+    // This ensures we capture frames even when video is paused
+    _startFrameExtraction();
   }
 
   void _onVideoStateChanged() {
@@ -71,20 +75,29 @@ class VideoTextureProvider extends PanoramaTextureProvider {
   Future<void> _extractFrame() async {
     try {
       final context = _videoKey.currentContext;
-      if (context == null) return;
+      if (context == null) {
+        debugPrint('Frame extraction: context is null');
+        return;
+      }
 
       final boundary = context.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) return;
+      if (boundary == null) {
+        debugPrint('Frame extraction: boundary is null');
+        return;
+      }
 
       // Capture the current frame
       final image = await boundary.toImage(pixelRatio: 1.0);
 
-      // Dispose old frame
-      _currentFrame?.dispose();
-      _currentFrame = image;
+      // Only update if we got a valid frame
+      if (image.width > 0 && image.height > 0) {
+        // Dispose old frame
+        _currentFrame?.dispose();
+        _currentFrame = image;
 
-      // Notify listeners that a new frame is available
-      notifyListeners();
+        // Notify listeners that a new frame is available
+        notifyListeners();
+      }
     } catch (e) {
       // Silently fail - frame extraction can fail during transitions
       debugPrint('Frame extraction failed: $e');
@@ -99,11 +112,18 @@ class VideoTextureProvider extends PanoramaTextureProvider {
   /// Build the video widget for frame capture
   /// This widget should be placed in the widget tree but can be invisible
   Widget buildVideoWidget() {
+    // Ensure we have valid dimensions
+    final width =
+        controller.value.size.width > 0 ? controller.value.size.width : 1920.0;
+    final height = controller.value.size.height > 0
+        ? controller.value.size.height
+        : 1080.0;
+
     return RepaintBoundary(
       key: _videoKey,
       child: SizedBox(
-        width: controller.value.size.width,
-        height: controller.value.size.height,
+        width: width,
+        height: height,
         child: VideoPlayer(controller),
       ),
     );

@@ -368,14 +368,18 @@ class PanoramaState extends State<PanoramaViewer>
 
   void _updateTextureFromProvider() async {
     if (textureProvider == null || !textureProvider!.isReady) {
+      debugPrint('Texture provider not ready');
       return;
     }
 
     final frame = await textureProvider!.getCurrentFrame();
     if (frame == null) {
+      debugPrint('No frame available from texture provider');
       return;
     }
 
+    debugPrint(
+        'Updating texture from provider: ${frame.width}x${frame.height}');
     surface?.mesh.texture = frame;
     surface?.mesh.textureRect = Rect.fromLTWH(
       0,

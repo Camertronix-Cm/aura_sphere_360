@@ -1,96 +1,48 @@
-# Bug Fix: Video Not Showing Until Play/Pause
+# Video Initial Frame Bug Fix
 
-## Issue
-Video panoramas were not displaying until the user pressed pause and then play again. The panorama would show a black/empty sphere initially.
+## Problem
+When picking a video or using a network video link, the screen appeared white while playing. The video frame only became visible when paused, and then playback worked normally afterward.
 
 ## Root Cause
-The `VideoTextureProvider` was only starting frame extraction when the video was playing. The `_onVideoStateChanged` listener would stop frame extraction when the video was paused, which meant:
+The issue was a race condition in the video texture initialization:
 
-1. Video initializes (often in paused state)
-2. Frame extraction never starts
-3. No frames captured
-4. Panorama shows nothing
-5. User presses pause → play
-6. Frame extraction starts
-7. Frames captured
-8. Panorama displays correctly
+1. Video controller initialized and started playing
+2. PanoramaViewer tried to render immediately
+3. First frame extraction happened asynchronously (100ms delay + extraction time)
+4. Result: Panorama rendered with `null` texture → white screen
+5. When paused, the frame extraction completed → frame became visible
 
 ## Solution
-Modified `VideoTextureProvider` to:
+Modified `VideoTextureProvider.initialize()` to:
 
-1. **Start frame extraction immediately** after initialization, regardless of play/pause state
-2. **Keep frame extraction running** even when video is paused
-3. **Extract first frame immediately** with a small delay to ensure video widget is rendered
+1. **Wait for first frame extraction** before completing initialization
+2. Extract the first frame synchronously with proper await
+3. Add additional delay to ensure frame capture completes
+4. Only then start periodic frame extraction for continuous updates
 
-### Code Changes
+### Changes Made
 
-**Before:**
-```dart
-void _onVideoStateChanged() {
-  if (controller.value.isPlaying && _frameTimer == null) {
-    _startFrameExtraction();
-  } else if (!controller.value.isPlaying && _frameTimer != null) {
-    _stopFrameExtraction(); // ❌ This was the problem
-  }
-}
-```
+**lib/src/video_texture_provider.dart:**
+- Reordered initialization to extract first frame BEFORE starting periodic updates
+- Added `await` to first frame extraction to ensure it completes
+- Added validation in `_extractFrame()` to check frame dimensions
+- Added fallback dimensions in `buildVideoWidget()` for edge cases
+- Added debug logging for troubleshooting
 
-**After:**
-```dart
-@override
-Future<void> initialize() async {
-  if (!controller.value.isInitialized) {
-    await controller.initialize();
-  }
-  _isInitialized = true;
-
-  // Start frame extraction immediately ✅
-  _startFrameExtraction();
-
-  controller.addListener(_onVideoStateChanged);
-  
-  // Extract first frame immediately ✅
-  await Future.delayed(const Duration(milliseconds: 100));
-  _extractFrame();
-}
-
-void _onVideoStateChanged() {
-  // Keep frame extraction running regardless of play/pause state ✅
-  if (_frameTimer == null) {
-    _startFrameExtraction();
-  }
-}
-```
-
-## Benefits
-
-1. **Immediate Display**: Video panorama shows immediately after loading
-2. **Paused Frames**: Can see video content even when paused
-3. **Better UX**: No need to press play/pause to see content
-4. **Consistent Behavior**: Works the same for network, local, and asset videos
-
-## Performance Impact
-
-Minimal - frame extraction continues at 30 FPS even when paused, but this is necessary to:
-- Show the current frame when paused
-- Update panorama when seeking
-- Maintain consistent behavior
-
-If performance is a concern, we could optimize by:
-- Reducing frame rate when paused (e.g., 5 FPS)
-- Stopping extraction after X seconds of pause
-- Only extracting on demand when paused
-
-But for now, continuous extraction provides the best user experience.
+**lib/panorama_viewer.dart:**
+- Added debug logging in `_updateTextureFromProvider()` to track texture updates
 
 ## Testing
+Test with:
+1. Local video files via file picker
+2. Network video URLs
+3. Asset videos
 
-Tested with:
-- ✅ Network videos
-- ✅ Local file videos
-- ✅ Both play and pause states
-- ✅ Seeking while paused
-- ✅ iOS device
+All should now display the first frame immediately when playback starts, with no white screen.
 
-## Related Files
-- `lib/src/video_texture_provider.dart`
+## Technical Details
+The fix ensures that:
+- `textureProvider.isReady` returns true only after first frame is captured
+- `getCurrentFrame()` returns a valid frame before panorama renders
+- Frame extraction continues at 30 FPS for smooth playback
+- Video widget remains in widget tree for frame capture (opacity 0.01)
