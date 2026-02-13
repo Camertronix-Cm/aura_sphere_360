@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access for WebRTC 360° video streaming</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access for WebRTC audio streaming</string>
 </dict>
 </plist>

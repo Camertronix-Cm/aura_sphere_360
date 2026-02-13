@@ -1,6 +1,6 @@
 name: aura_sphere_360
 description: Immersive 360° panorama and video viewer for Flutter. Display spherical images and videos with touch controls, sensor controls, and smooth 30 FPS playback. Perfect for VR experiences and 360° media.
-version: 1.0.0
+version: 1.1.0
 homepage: https://github.com/Camertronix-Cm/aura_sphere_360
 repository: https://github.com/Camertronix-Cm/aura_sphere_360
 issue_tracker: https://github.com/Camertronix-Cm/aura_sphere_360/issues
@@ -15,6 +15,7 @@ dependencies:
   flutter_cube: ^0.1.1
   dchs_motion_sensors: ^2.0.1
   video_player: ^2.9.2
+  flutter_webrtc: ^0.11.7
 
 dev_dependencies:
   flutter_test:
