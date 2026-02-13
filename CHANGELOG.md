@@ -1,3 +1,11 @@
+## 1.0.1 - Bug Fix Release
+* **FIXED**: Video initial frame white screen bug
+  * Fixed race condition where panorama rendered before first video frame was captured
+  * Video now displays first frame immediately on playback start
+  * Affects file picker videos, network videos, and asset videos
+  * Added frame dimension validation and fallback dimensions
+  * Added debug logging for troubleshooting
+
 ## 1.0.0 - Initial Release
 * **NEW: Aura Sphere 360** - Complete 360° panorama and video viewer
   * Display 360° images with touch and sensor controls
