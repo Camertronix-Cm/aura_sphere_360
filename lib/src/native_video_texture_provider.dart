@@ -24,8 +24,7 @@ import 'native_frame_decoder.dart';
 /// await provider.initialize();
 /// ```
 class NativeVideoTextureProvider extends PanoramaTextureProvider {
-  static const MethodChannel _method =
-      MethodChannel('panorama_viewer/control');
+  static const MethodChannel _method = MethodChannel('panorama_viewer/control');
 
   /// The URL of the video to play.
   final String videoUrl;
@@ -56,8 +55,8 @@ class NativeVideoTextureProvider extends PanoramaTextureProvider {
   Future<void> initialize() async {
     debugPrint('[NativeVideoTextureProvider] Initializing with URL: $videoUrl');
 
-    _extractorId = await _method.invokeMethod<String>(
-        'createVideoExtractor', {'url': videoUrl});
+    _extractorId = await _method
+        .invokeMethod<String>('createVideoExtractor', {'url': videoUrl});
 
     if (_extractorId == null || _extractorId!.isEmpty) {
       debugPrint('[NativeVideoTextureProvider] Failed to create extractor');
@@ -80,7 +79,8 @@ class NativeVideoTextureProvider extends PanoramaTextureProvider {
     // Start playback
     await _method.invokeMethod('videoPlay', {'id': _extractorId});
 
-    debugPrint('[NativeVideoTextureProvider] Initialized, awaiting first frame');
+    debugPrint(
+        '[NativeVideoTextureProvider] Initialized, awaiting first frame');
   }
 
   /// Called for each frame event from native. Uses latest-frame-wins:

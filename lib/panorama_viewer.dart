@@ -64,7 +64,7 @@ class PanoramaViewer extends StatefulWidget {
     this.useNativeExtraction = true,
     this.hotspots,
     this.panoramaController,
-  }) : assert(
+  })  : assert(
           (child == null ? 0 : 1) +
                   (videoPlayerController == null && videoUrl == null ? 0 : 1) +
                   (webrtcRenderer == null ? 0 : 1) <=
@@ -72,7 +72,9 @@ class PanoramaViewer extends StatefulWidget {
           'Cannot provide more than one source (child, video, or webrtcRenderer)',
         ),
         assert(
-          videoUrl == null || videoPlayerController == null || !useNativeExtraction,
+          videoUrl == null ||
+              videoPlayerController == null ||
+              !useNativeExtraction,
           'When useNativeExtraction is true, provide videoUrl instead of videoPlayerController',
         );
 
@@ -455,7 +457,6 @@ class PanoramaState extends State<PanoramaViewer>
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
       debugPrint('[PanoramaState] Native video provider initialized');
-
     } else if (widget.videoPlayerController != null) {
       // Legacy path: RepaintBoundary.toImage() screenshot.
       // Kept for backward compatibility; has main-thread GPU readback.
@@ -478,8 +479,10 @@ class PanoramaState extends State<PanoramaViewer>
       await videoProvider.startFrameExtractionAndWaitForFirstFrame();
       debugPrint('[PanoramaState] Legacy video provider ready');
 
-    // ── WebRTC ───────────────────────────────────────────────────────────────
-    } else if (widget.webrtcRenderer != null && widget.useNativeExtraction && widget.webrtcTrackId != null) {
+      // ── WebRTC ───────────────────────────────────────────────────────────────
+    } else if (widget.webrtcRenderer != null &&
+        widget.useNativeExtraction &&
+        widget.webrtcTrackId != null) {
       // Native path: pixel stream from flutter_webrtc fork.
       debugPrint('[PanoramaState] Creating NativeWebRTCTextureProvider...');
       textureProvider = NativeWebRTCTextureProvider(
@@ -490,7 +493,6 @@ class PanoramaState extends State<PanoramaViewer>
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
       debugPrint('[PanoramaState] Native WebRTC provider initialized');
-
     } else if (widget.webrtcRenderer != null) {
       // Legacy path: RepaintBoundary.toImage() screenshot.
       debugPrint('[PanoramaState] Creating legacy WebRTCTextureProvider...');
@@ -509,7 +511,7 @@ class PanoramaState extends State<PanoramaViewer>
       await Future.delayed(const Duration(milliseconds: 500));
       debugPrint('[PanoramaState] Legacy WebRTC provider ready');
 
-    // ── Image ────────────────────────────────────────────────────────────────
+      // ── Image ────────────────────────────────────────────────────────────────
     } else if (widget.child != null) {
       debugPrint('[PanoramaState] Creating ImageTextureProvider...');
       textureProvider = ImageTextureProvider(widget.child!.image);

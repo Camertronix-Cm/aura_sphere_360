@@ -54,8 +54,7 @@ export 'panorama_viewer.dart'
         SensorControl;
 
 // Export native texture providers for advanced usage
-export 'src/native_video_texture_provider.dart'
-    show NativeVideoTextureProvider;
+export 'src/native_video_texture_provider.dart' show NativeVideoTextureProvider;
 export 'src/native_webrtc_texture_provider.dart'
     show NativeWebRTCTextureProvider;
 

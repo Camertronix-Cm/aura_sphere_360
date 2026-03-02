@@ -73,8 +73,8 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     try {
       // Ask the flutter_webrtc fork to create a pixel stream for this track.
       // peerConnectionId is needed to find remote tracks.
-      final String? channelName = await _webrtcMethod.invokeMethod<String>(
-          'createPixelStream', {
+      final String? channelName =
+          await _webrtcMethod.invokeMethod<String>('createPixelStream', {
         'trackId': trackId,
         'peerConnectionId': peerConnectionId,
       });
@@ -98,8 +98,7 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     } on PlatformException catch (e) {
       debugPrint(
           '[NativeWebRTCTextureProvider] PlatformException: ${e.message}');
-      debugPrint(
-          'Note: This provider requires a flutter_webrtc fork with '
+      debugPrint('Note: This provider requires a flutter_webrtc fork with '
           'createPixelStream support. See PATH_A_IMPLEMENTATION.md.');
     }
   }
