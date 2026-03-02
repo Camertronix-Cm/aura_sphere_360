@@ -12,8 +12,18 @@ class ExampleScreenVideo extends StatefulWidget {
 
 class ExampleScreenVideoState extends State<ExampleScreenVideo>
     with WidgetsBindingObserver {
+  /// The video URL — passed to both the native extractor and (optionally)
+  /// a VideoPlayerController for UI controls.
+  static const String _videoUrl =
+      'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4';
+
+  /// Optional: keep a VideoPlayerController only for UI state (position, duration).
+  /// The native extractor creates its own AVPlayer on a background thread.
   late VideoPlayerController _videoController;
   bool _isInitialized = false;
+
+  /// Toggle between native extraction and legacy screenshot path.
+  bool _useNativeExtraction = true;
 
   @override
   void initState() {
@@ -24,41 +34,19 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo>
 
   Future<void> _initializeVideo() async {
     try {
-      print('🎥 Starting video initialization...');
-
-      // Option 1: Use asset video (uncomment and add video to assets folder)
-      // _videoController = VideoPlayerController.asset('assets/video360.mp4');
-
-      // Option 2: Use network video (currently active)
       _videoController = VideoPlayerController.networkUrl(
-        Uri.parse(
-          'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
-        ),
+        Uri.parse(_videoUrl),
       );
 
-      // Option 3: Use local file (uncomment to test with local file)
-      // import 'dart:io';
-      // _videoController = VideoPlayerController.file(
-      //   File('/path/to/your/video.mp4'),
-      // );
-
-      print('🎥 Initializing video controller...');
       await _videoController.initialize();
-      print('🎥 Video initialized successfully');
-      print('🎥 Video size: ${_videoController.value.size}');
-      print('🎥 Video duration: ${_videoController.value.duration}');
-
       _videoController.setLooping(true);
       _videoController.play();
-      print('🎥 Video playing');
 
       setState(() {
         _isInitialized = true;
       });
-      print('🎥 State updated, should show panorama now');
     } catch (e, stackTrace) {
-      print('❌ Error initializing video: $e');
-      print('❌ Stack trace: $stackTrace');
+      debugPrint('Error initializing video: $e\n$stackTrace');
       setState(() {
         _isInitialized = false;
       });
@@ -76,34 +64,29 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_isInitialized) return;
-
     if (state == AppLifecycleState.paused) {
-      // App going to background - pause video
-      _videoController.pause();
-    } else if (state == AppLifecycleState.resumed) {
-      // App returning to foreground - optionally resume playback
-      // Uncomment if you want auto-resume:
-      // _videoController.play();
-    }
-  }
-
-  @override
-  void reassemble() {
-    super.reassemble();
-    // Handle hot reload - pause video to prevent background playback
-    if (_isInitialized) {
       _videoController.pause();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    print('🏗️ Building ExampleScreenVideo, initialized: $_isInitialized');
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
         actions: [
+          // Toggle native vs legacy extraction
+          IconButton(
+            icon: Icon(_useNativeExtraction ? Icons.bolt : Icons.screenshot),
+            tooltip: _useNativeExtraction
+                ? 'Native extraction (fast)'
+                : 'Legacy screenshot (slow)',
+            onPressed: () {
+              setState(() {
+                _useNativeExtraction = !_useNativeExtraction;
+              });
+            },
+          ),
           if (_isInitialized)
             IconButton(
               icon: Icon(
@@ -124,11 +107,21 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo>
         ],
       ),
       body: _isInitialized
-          ? PanoramaViewer(
-              animSpeed: 0.0,
-              sensorControl: SensorControl.none, // Disable sensor for testing
-              videoPlayerController: _videoController,
-            )
+          ? _useNativeExtraction
+              // ── Native path: passes videoUrl directly ──────────────────
+              ? PanoramaViewer(
+                  animSpeed: 0.0,
+                  sensorControl: SensorControl.none,
+                  videoUrl: _videoUrl,
+                  useNativeExtraction: true,
+                )
+              // ── Legacy path: uses VideoPlayerController + screenshot ───
+              : PanoramaViewer(
+                  animSpeed: 0.0,
+                  sensorControl: SensorControl.none,
+                  videoPlayerController: _videoController,
+                  useNativeExtraction: false,
+                )
           : const Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -159,6 +152,7 @@ class ExampleScreenVideoState extends State<ExampleScreenVideo>
                 builder: (context) => AlertDialog(
                   title: const Text('Video Info'),
                   content: Text(
+                    'Mode: ${_useNativeExtraction ? "Native extraction" : "Legacy screenshot"}\n'
                     'Duration: ${_videoController.value.duration}\n'
                     'Position: ${_videoController.value.position}\n'
                     'Size: ${_videoController.value.size}\n'

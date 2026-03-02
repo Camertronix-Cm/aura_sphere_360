@@ -4,16 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:aura_sphere_360/aura_sphere_360.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
-/// Example screen demonstrating WebRTC live streaming in 360° panorama
+/// Example screen demonstrating WebRTC live streaming in 360° panorama.
 ///
-/// This example shows how to:
-/// 1. Initialize RTCVideoRenderer
-/// 2. Get local camera stream (for demo purposes)
-/// 3. Display the stream in a 360° panorama viewer
-/// 4. Handle connection states
-///
-/// Note: In a real application, you would connect to a remote WebRTC peer
-/// instead of using the local camera.
+/// Supports two modes:
+/// - **Native extraction** (default: off): Requires a flutter_webrtc fork with
+///   `createPixelStream` support. Pass `webrtcTrackId` to enable. Eliminates
+///   main-thread GPU readback entirely.
+/// - **Legacy screenshot**: Uses RepaintBoundary.toImage() at 30fps. Works with
+///   stock flutter_webrtc but causes main-thread blocking on iOS.
 class ExampleScreenWebRTC extends StatefulWidget {
   const ExampleScreenWebRTC({super.key, required this.title});
 
@@ -29,6 +27,11 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
   bool _isInitialized = false;
   bool _isConnecting = false;
   String _statusMessage = 'Not connected';
+  String? _videoTrackId;
+
+  /// Toggle between native and legacy paths.
+  /// Native path requires flutter_webrtc fork — set to false by default.
+  bool _useNativeExtraction = false;
 
   @override
   void initState() {
@@ -61,12 +64,10 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
     });
 
     try {
-      // Get local camera stream (for demo purposes)
-      // In a real app, you would connect to a remote WebRTC peer
       final Map<String, dynamic> mediaConstraints = {
         'audio': false,
         'video': {
-          'facingMode': 'environment', // Use back camera if available
+          'facingMode': 'environment',
           'width': {'ideal': 1920, 'min': 640},
           'height': {'ideal': 1080, 'min': 480},
         }
@@ -76,12 +77,18 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
           await navigator.mediaDevices.getUserMedia(mediaConstraints);
       _renderer!.srcObject = _localStream;
 
+      // Capture the video track ID for native extraction
+      final videoTracks = _localStream!.getVideoTracks();
+      if (videoTracks.isNotEmpty) {
+        _videoTrackId = videoTracks.first.id;
+      }
+
       setState(() {
         _isConnecting = false;
         _statusMessage = 'Connected - Local camera stream';
       });
 
-      print('Local stream started successfully');
+      print('Local stream started, trackId: $_videoTrackId');
     } catch (e) {
       setState(() {
         _isConnecting = false;
@@ -104,6 +111,8 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
       _renderer!.srcObject = null;
     }
 
+    _videoTrackId = null;
+
     setState(() {
       _statusMessage = 'Disconnected';
     });
@@ -122,16 +131,42 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
       appBar: AppBar(
         title: Text(widget.title),
         backgroundColor: Colors.black.withOpacity(0.5),
+        actions: [
+          // Toggle native vs legacy extraction
+          IconButton(
+            icon: Icon(_useNativeExtraction ? Icons.bolt : Icons.screenshot),
+            tooltip: _useNativeExtraction
+                ? 'Native extraction (requires fork)'
+                : 'Legacy screenshot',
+            onPressed: () {
+              setState(() {
+                _useNativeExtraction = !_useNativeExtraction;
+              });
+            },
+          ),
+        ],
       ),
       body: Stack(
         children: [
           // Panorama viewer with WebRTC stream
           if (_renderer != null && _localStream != null)
-            PanoramaViewer(
-              webrtcRenderer: _renderer,
-              sensorControl: SensorControl.orientation,
-              animSpeed: 0.5,
-            )
+            _useNativeExtraction && _videoTrackId != null
+                // ── Native path ──────────────────────────────────────────
+                ? PanoramaViewer(
+                    webrtcRenderer: _renderer,
+                    webrtcTrackId: _videoTrackId,
+                    // peerConnectionId is null for local tracks
+                    useNativeExtraction: true,
+                    sensorControl: SensorControl.orientation,
+                    animSpeed: 0.5,
+                  )
+                // ── Legacy path ──────────────────────────────────────────
+                : PanoramaViewer(
+                    webrtcRenderer: _renderer,
+                    useNativeExtraction: false,
+                    sensorControl: SensorControl.orientation,
+                    animSpeed: 0.5,
+                  )
           else
             Center(
               child: Column(
@@ -180,7 +215,7 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _statusMessage,
+                      '$_statusMessage  |  ${_useNativeExtraction ? "Native" : "Legacy"}',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
@@ -242,9 +277,9 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
                   color: Colors.black.withOpacity(0.7),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'WebRTC Live Streaming Demo',
                       style: TextStyle(
@@ -257,20 +292,13 @@ class _ExampleScreenWebRTCState extends State<ExampleScreenWebRTC> {
                     Text(
                       'This demo uses your device camera as a WebRTC stream source. '
                       'In a real application, you would connect to a remote WebRTC peer '
-                      'to stream live 360° video.',
+                      'to stream live 360\u00b0 video.\n\n'
+                      'Tap the bolt/screenshot icon in the app bar to toggle between '
+                      'native extraction (requires flutter_webrtc fork) and legacy '
+                      'screenshot mode.',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      '• Tap "Start Camera Stream" to begin\n'
-                      '• Use touch gestures to pan and zoom\n'
-                      '• Enable device orientation for gyroscope control',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
                       ),
                     ),
                   ],
