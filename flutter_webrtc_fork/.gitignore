@@ -1,6 +1,0 @@
-# Large prebuilt desktop binaries — not needed for iOS/macOS.
-# iOS WebRTC is delivered via CocoaPods (WebRTC-SDK).
-third_party/libwebrtc/lib/
-example/
-.dart_tool/
-build/

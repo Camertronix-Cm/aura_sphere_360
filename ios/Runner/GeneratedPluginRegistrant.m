@@ -30,6 +30,12 @@
 @import video_player_avfoundation;
 #endif
 
+#if __has_include(<webrtc_pixel_stream/WebrtcPixelStreamPlugin.h>)
+#import <webrtc_pixel_stream/WebrtcPixelStreamPlugin.h>
+#else
+@import webrtc_pixel_stream;
+#endif
+
 @implementation GeneratedPluginRegistrant
 
 + (void)registerWithRegistry:(NSObject<FlutterPluginRegistry>*)registry {
@@ -37,6 +43,7 @@
   [FlutterWebRTCPlugin registerWithRegistrar:[registry registrarForPlugin:@"FlutterWebRTCPlugin"]];
   [PathProviderPlugin registerWithRegistrar:[registry registrarForPlugin:@"PathProviderPlugin"]];
   [FVPVideoPlayerPlugin registerWithRegistrar:[registry registrarForPlugin:@"FVPVideoPlayerPlugin"]];
+  [WebrtcPixelStreamPlugin registerWithRegistrar:[registry registrarForPlugin:@"WebrtcPixelStreamPlugin"]];
 }
 
 @end

@@ -13,9 +13,9 @@ import 'native_frame_decoder.dart';
 /// no RepaintBoundary, no Timer.periodic — frames arrive via EventChannel from
 /// native code running on WebRTC's internal render thread.
 ///
-/// **Requires a flutter_webrtc fork** that adds `FlutterRTCStreamingSink` and
-/// a `createPixelStream` method handler. See PATH_A_IMPLEMENTATION.md for the
-/// fork patch details.
+/// Uses the `webrtc_pixel_stream` companion plugin which attaches a secondary
+/// RTCVideoRenderer to any video track via the existing flutter_webrtc
+/// singleton — no fork required.
 ///
 /// Example:
 /// ```dart
@@ -31,9 +31,9 @@ import 'native_frame_decoder.dart';
 /// await provider.initialize();
 /// ```
 class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
-  // The method channel used by flutter_webrtc
-  static const MethodChannel _webrtcMethod =
-      MethodChannel('FlutterWebRTC.Method');
+  // Method channel for the webrtc_pixel_stream companion plugin
+  static const MethodChannel _pixelStreamMethod =
+      MethodChannel('webrtc_pixel_stream/control');
 
   /// The RTCVideoRenderer associated with this stream.
   /// Retained for lifecycle management (dispose, etc.).
@@ -71,13 +71,15 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
         '[NativeWebRTCTextureProvider] Initializing for track: $trackId');
 
     try {
-      // Ask the flutter_webrtc fork to create a pixel stream for this track.
-      // peerConnectionId is needed to find remote tracks.
-      final String? channelName =
-          await _webrtcMethod.invokeMethod<String>('createPixelStream', {
+      // Ask the webrtc_pixel_stream companion plugin to attach a streaming
+      // renderer to this track. It uses FlutterWebRTCPlugin.sharedSingleton
+      // internally to look up the track — no fork needed.
+      final result =
+          await _pixelStreamMethod.invokeMapMethod<String, dynamic>('createPixelStream', {
         'trackId': trackId,
         'peerConnectionId': peerConnectionId,
       });
+      final String? channelName = result?['channelName'];
 
       if (channelName == null || channelName.isEmpty) {
         debugPrint(
@@ -98,8 +100,12 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     } on PlatformException catch (e) {
       debugPrint(
           '[NativeWebRTCTextureProvider] PlatformException: ${e.message}');
-      debugPrint('Note: This provider requires a flutter_webrtc fork with '
-          'createPixelStream support. See PATH_A_IMPLEMENTATION.md.');
+      debugPrint('Ensure webrtc_pixel_stream is included as a dependency.');
+    } on MissingPluginException catch (e) {
+      debugPrint(
+          '[NativeWebRTCTextureProvider] MissingPluginException: ${e.message}');
+      debugPrint('webrtc_pixel_stream plugin not registered. '
+          'Add it as a dependency in pubspec.yaml.');
     }
   }
 
@@ -148,8 +154,8 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     _sub = null;
     _currentFrame?.dispose();
     _currentFrame = null;
-    // Tell the fork to stop streaming and clean up the renderer
-    _webrtcMethod.invokeMethod('disposePixelStream', {'trackId': trackId});
+    // Tell the companion plugin to stop streaming and clean up the renderer
+    _pixelStreamMethod.invokeMethod('disposePixelStream', {'trackId': trackId});
     super.dispose();
   }
 }
