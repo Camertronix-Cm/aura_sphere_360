@@ -53,6 +53,12 @@ export 'panorama_viewer.dart'
         Hotspot,
         SensorControl;
 
+// Export native texture providers for advanced usage
+export 'src/native_video_texture_provider.dart'
+    show NativeVideoTextureProvider;
+export 'src/native_webrtc_texture_provider.dart'
+    show NativeWebRTCTextureProvider;
+
 // Re-export flutter_webrtc for convenience
 export 'package:flutter_webrtc/flutter_webrtc.dart' show RTCVideoRenderer;
 

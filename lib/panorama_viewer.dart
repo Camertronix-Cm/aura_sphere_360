@@ -13,6 +13,8 @@ import 'src/texture_provider.dart';
 import 'src/image_texture_provider.dart';
 import 'src/video_texture_provider.dart';
 import 'src/webrtc_texture_provider.dart';
+import 'src/native_video_texture_provider.dart';
+import 'src/native_webrtc_texture_provider.dart';
 
 enum SensorControl {
   /// No sensor used.
@@ -55,15 +57,23 @@ class PanoramaViewer extends StatefulWidget {
     this.onImageLoad,
     this.child,
     this.videoPlayerController,
+    this.videoUrl,
     this.webrtcRenderer,
+    this.webrtcTrackId,
+    this.webrtcPeerConnectionId,
+    this.useNativeExtraction = true,
     this.hotspots,
     this.panoramaController,
   }) : assert(
           (child == null ? 0 : 1) +
-                  (videoPlayerController == null ? 0 : 1) +
+                  (videoPlayerController == null && videoUrl == null ? 0 : 1) +
                   (webrtcRenderer == null ? 0 : 1) <=
               1,
-          'Cannot provide more than one source (child, videoPlayerController, or webrtcRenderer)',
+          'Cannot provide more than one source (child, video, or webrtcRenderer)',
+        ),
+        assert(
+          videoUrl == null || videoPlayerController == null || !useNativeExtraction,
+          'When useNativeExtraction is true, provide videoUrl instead of videoPlayerController',
         );
 
   /// The initial latitude, in degrees, between -90 and 90. default to 0 (the vertical center of the image).
@@ -147,11 +157,37 @@ class PanoramaViewer extends StatefulWidget {
   /// Specify an Image(equirectangular image) widget to the panorama.
   final Image? child;
 
-  /// Video player controller for video panoramas (alternative to child)
+  /// Video player controller for video panoramas (alternative to child).
+  /// When [useNativeExtraction] is true, prefer using [videoUrl] directly
+  /// for better performance (avoids dual AVPlayer). Retain this only if you
+  /// need playback UI controls (seek bar, duration display) via the controller.
   final VideoPlayerController? videoPlayerController;
+
+  /// URL of the 360° video to play. Used by the native frame extractor.
+  /// When [useNativeExtraction] is true, the native code creates its own
+  /// AVPlayer on a background thread, eliminating the main-thread GPU readback.
+  final String? videoUrl;
 
   /// WebRTC video renderer for live streaming panoramas (alternative to child and videoPlayerController)
   final RTCVideoRenderer? webrtcRenderer;
+
+  /// The MediaStreamTrack.id of the WebRTC video track.
+  /// Required when [webrtcRenderer] is set and [useNativeExtraction] is true.
+  final String? webrtcTrackId;
+
+  /// The peer connection ID for WebRTC remote track lookup.
+  /// Pass null for local tracks (e.g., local camera demo).
+  final String? webrtcPeerConnectionId;
+
+  /// Whether to use native frame extraction (Path A) instead of the
+  /// RepaintBoundary.toImage() screenshot approach.
+  ///
+  /// When true (default):
+  /// - Video: Uses AVPlayerItemVideoOutput on a background thread
+  /// - WebRTC: Requires flutter_webrtc fork with createPixelStream
+  ///
+  /// Set to false to fall back to the legacy screenshot approach.
+  final bool useNativeExtraction;
 
   /// Place widgets in the panorama.
   final List<Hotspot>? hotspots;
@@ -403,74 +439,79 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   Future<void> _initializeTextureProvider() async {
-    debugPrint('🌐 [PanoramaState] _initializeTextureProvider() called');
+    debugPrint('[PanoramaState] _initializeTextureProvider() called');
 
     // Dispose old provider
     textureProvider?.removeListener(_updateTextureFromProvider);
     textureProvider?.dispose();
     textureProvider = null;
 
-    // Create appropriate provider based on input
-    if (widget.videoPlayerController != null) {
-      debugPrint('🌐 [PanoramaState] Creating VideoTextureProvider...');
+    // ── Video ────────────────────────────────────────────────────────────────
+    if (widget.videoUrl != null && widget.useNativeExtraction) {
+      // Native path: AVPlayerItemVideoOutput on background thread.
+      // No hidden widgets, no RepaintBoundary, no Timer.
+      debugPrint('[PanoramaState] Creating NativeVideoTextureProvider...');
+      textureProvider = NativeVideoTextureProvider(widget.videoUrl!);
+      textureProvider!.addListener(_updateTextureFromProvider);
+      await textureProvider!.initialize();
+      debugPrint('[PanoramaState] Native video provider initialized');
+
+    } else if (widget.videoPlayerController != null) {
+      // Legacy path: RepaintBoundary.toImage() screenshot.
+      // Kept for backward compatibility; has main-thread GPU readback.
+      debugPrint('[PanoramaState] Creating legacy VideoTextureProvider...');
       textureProvider = VideoTextureProvider(widget.videoPlayerController!);
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
 
-      // CRITICAL FIX: Trigger a rebuild so the video widget (RepaintBoundary)
-      // gets placed in the widget tree. Without this, the build() method's
-      // "if (textureProvider is VideoTextureProvider)" check is false on the
-      // first build, and the video widget never enters the tree.
-      debugPrint(
-          '🌐 [PanoramaState] Triggering setState to add video widget to tree...');
-      if (mounted) {
-        setState(() {});
-      }
+      // Trigger a rebuild so the video widget (RepaintBoundary)
+      // gets placed in the widget tree.
+      if (mounted) setState(() {});
 
-      // Wait for the widget tree to actually rebuild and render the video widget
       final completer = Completer<void>();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        debugPrint(
-            '🌐 [PanoramaState] Post-frame callback: video widget should now be in tree');
         if (!completer.isCompleted) completer.complete();
       });
       await completer.future;
 
-      // Now the video widget is in the tree, start frame extraction
       final videoProvider = textureProvider as VideoTextureProvider;
-      debugPrint(
-          '🌐 [PanoramaState] Video widget context: ${videoProvider.videoKey.currentContext != null ? "EXISTS" : "NULL"}');
       await videoProvider.startFrameExtractionAndWaitForFirstFrame();
+      debugPrint('[PanoramaState] Legacy video provider ready');
 
-      debugPrint('🌐 [PanoramaState] Video texture provider fully ready');
+    // ── WebRTC ───────────────────────────────────────────────────────────────
+    } else if (widget.webrtcRenderer != null && widget.useNativeExtraction && widget.webrtcTrackId != null) {
+      // Native path: pixel stream from flutter_webrtc fork.
+      debugPrint('[PanoramaState] Creating NativeWebRTCTextureProvider...');
+      textureProvider = NativeWebRTCTextureProvider(
+        widget.webrtcRenderer!,
+        trackId: widget.webrtcTrackId!,
+        peerConnectionId: widget.webrtcPeerConnectionId,
+      );
+      textureProvider!.addListener(_updateTextureFromProvider);
+      await textureProvider!.initialize();
+      debugPrint('[PanoramaState] Native WebRTC provider initialized');
+
     } else if (widget.webrtcRenderer != null) {
-      debugPrint('🌐 [PanoramaState] Creating WebRTCTextureProvider...');
+      // Legacy path: RepaintBoundary.toImage() screenshot.
+      debugPrint('[PanoramaState] Creating legacy WebRTCTextureProvider...');
       textureProvider = WebRTCTextureProvider(widget.webrtcRenderer!);
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
 
-      // Trigger rebuild to add WebRTC widget to tree
-      debugPrint(
-          '🌐 [PanoramaState] Triggering setState to add WebRTC widget to tree...');
-      if (mounted) {
-        setState(() {});
-      }
+      if (mounted) setState(() {});
 
-      // Wait for widget tree rebuild
       final completer = Completer<void>();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        debugPrint(
-            '🌐 [PanoramaState] Post-frame callback: WebRTC widget should now be in tree');
         if (!completer.isCompleted) completer.complete();
       });
       await completer.future;
 
-      // Give the WebRTC renderer a moment to render first frame
       await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('[PanoramaState] Legacy WebRTC provider ready');
 
-      debugPrint('🌐 [PanoramaState] WebRTC texture provider fully ready');
+    // ── Image ────────────────────────────────────────────────────────────────
     } else if (widget.child != null) {
-      debugPrint('🌐 [PanoramaState] Creating ImageTextureProvider...');
+      debugPrint('[PanoramaState] Creating ImageTextureProvider...');
       textureProvider = ImageTextureProvider(widget.child!.image);
       textureProvider!.addListener(_updateTextureFromProvider);
       await textureProvider!.initialize();
@@ -491,6 +532,7 @@ class PanoramaState extends State<PanoramaViewer>
     scene.camera.position.setFrom(Vector3(0, 0, 0.1));
     if ((widget.child != null ||
             widget.videoPlayerController != null ||
+            widget.videoUrl != null ||
             widget.webrtcRenderer != null) &&
         surface == null) {
       debugPrint(
@@ -639,7 +681,10 @@ class PanoramaState extends State<PanoramaViewer>
       _loadTexture(widget.child?.image);
     }
     if (widget.videoPlayerController != oldWidget.videoPlayerController ||
-        widget.webrtcRenderer != oldWidget.webrtcRenderer) {
+        widget.videoUrl != oldWidget.videoUrl ||
+        widget.webrtcRenderer != oldWidget.webrtcRenderer ||
+        widget.webrtcTrackId != oldWidget.webrtcTrackId ||
+        widget.useNativeExtraction != oldWidget.useNativeExtraction) {
       _initializeTextureProvider();
     }
     if (widget.sensorControl != oldWidget.sensorControl) {
@@ -716,13 +761,11 @@ class PanoramaState extends State<PanoramaViewer>
 
   @override
   Widget build(BuildContext context) {
-    debugPrint(
-        '🌐 [PanoramaState] build() called, textureProvider type: ${textureProvider.runtimeType}');
     Widget pano = Stack(
       children: [
-        // Video widget for frame capture (if using video)
-        // Must be in the widget tree at actual size but still rendered
-        // We place it first (at the bottom) so it's behind the Cube
+        // Legacy video widget for frame capture (only when using old screenshot path)
+        // Native providers (NativeVideoTextureProvider, NativeWebRTCTextureProvider)
+        // do NOT need any hidden widgets — frames arrive via EventChannel.
         if (textureProvider is VideoTextureProvider)
           Positioned(
             left: 0,
@@ -733,7 +776,7 @@ class PanoramaState extends State<PanoramaViewer>
                   (textureProvider as VideoTextureProvider).buildVideoWidget(),
             ),
           ),
-        // WebRTC widget for frame capture (if using WebRTC)
+        // Legacy WebRTC widget for frame capture
         if (textureProvider is WebRTCTextureProvider)
           Positioned(
             left: 0,
