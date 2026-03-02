@@ -74,8 +74,8 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
       // Ask the webrtc_pixel_stream companion plugin to attach a streaming
       // renderer to this track. It uses FlutterWebRTCPlugin.sharedSingleton
       // internally to look up the track — no fork needed.
-      final result =
-          await _pixelStreamMethod.invokeMapMethod<String, dynamic>('createPixelStream', {
+      final result = await _pixelStreamMethod
+          .invokeMapMethod<String, dynamic>('createPixelStream', {
         'trackId': trackId,
         'peerConnectionId': peerConnectionId,
       });
