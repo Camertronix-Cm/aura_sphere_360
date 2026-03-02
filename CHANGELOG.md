@@ -1,3 +1,15 @@
+## 2.0.0 - Native Pixel Extraction
+* **BREAKING: Native video/WebRTC extraction** replaces RepaintBoundary.toImage()
+  * Eliminates GPU→CPU readback that blocked the main thread on iOS
+  * Video: AVPlayerItemVideoOutput extracts BGRA frames on a background thread
+  * WebRTC: webrtc_pixel_stream companion plugin streams raw frames via EventChannel
+  * Both paths deliver pixels via EventChannel → decodeImageFromPixels (engine IO thread)
+* **NEW: `videoUrl` parameter** - Pass a URL string for native video extraction
+* **NEW: `useNativeExtraction` parameter** - Toggle native vs legacy path (default: true)
+* **NEW: `webrtcTrackId` / `webrtcPeerConnectionId` parameters** for native WebRTC
+* **Backward compatible**: Set `useNativeExtraction: false` to use the legacy path
+* **Dependencies**: Added webrtc_pixel_stream ^0.1.0
+
 ## 1.1.0 - Phase 4: WebRTC Support
 * **NEW: WebRTC Live Streaming** - Stream live 360° video via WebRTC
   * Added `webrtcRenderer` parameter to PanoramaViewer

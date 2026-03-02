@@ -16,8 +16,7 @@ dependencies:
   dchs_motion_sensors: ^2.0.1
   video_player: ^2.9.2
   flutter_webrtc: ^0.11.7
-  webrtc_pixel_stream:
-    path: webrtc_pixel_stream
+  webrtc_pixel_stream: ^0.1.0
 
 dev_dependencies:
   flutter_test:
