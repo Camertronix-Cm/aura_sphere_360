@@ -1,3 +1,6 @@
+## 2.0.1
+* **FIX**: Updated webrtc_pixel_stream to 0.1.1 - fixes red/blue channel swap in WebRTC frames
+
 ## 2.0.0 - Native Pixel Extraction
 * **BREAKING: Native video/WebRTC extraction** replaces RepaintBoundary.toImage()
   * Eliminates GPU→CPU readback that blocked the main thread on iOS
