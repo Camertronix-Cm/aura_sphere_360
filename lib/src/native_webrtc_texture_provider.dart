@@ -26,7 +26,6 @@ import 'native_frame_decoder.dart';
 /// final provider = NativeWebRTCTextureProvider(
 ///   renderer,
 ///   trackId: videoTrack.id!,
-///   peerConnectionId: pc.peerConnectionId,
 /// );
 /// await provider.initialize();
 /// ```
