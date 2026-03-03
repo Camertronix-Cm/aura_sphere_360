@@ -58,6 +58,8 @@
   RTCMediaStreamTrack *track = [webrtcPlugin trackForId:trackId
                                        peerConnectionId:peerConnectionId];
   if (!track || ![track isKindOfClass:[RTCVideoTrack class]]) {
+    NSLog(@"[WebrtcPixelStream] Track not found or not video: trackId=%@, pcId=%@", 
+          trackId, peerConnectionId);
     result([FlutterError errorWithCode:@"TRACK_NOT_FOUND"
                                message:[NSString stringWithFormat:
                                    @"Video track '%@' not found (pcId=%@)",
@@ -67,12 +69,15 @@
   }
 
   RTCVideoTrack *videoTrack = (RTCVideoTrack *)track;
+  NSLog(@"[WebrtcPixelStream] Found video track: %@, readyState=%ld", 
+        trackId, (long)videoTrack.readyState);
 
   // Create the streaming sink and attach it as a second renderer.
   FlutterRTCStreamingSink *sink =
       [[FlutterRTCStreamingSink alloc] initWithTrackId:trackId
                                              messenger:_messenger];
   [videoTrack addRenderer:sink];
+  NSLog(@"[WebrtcPixelStream] Renderer attached to track: %@", trackId);
 
   _sinks[trackId] = sink;
   _tracks[trackId] = videoTrack;

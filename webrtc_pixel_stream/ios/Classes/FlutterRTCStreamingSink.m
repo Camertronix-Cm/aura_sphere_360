@@ -61,7 +61,19 @@
 }
 
 - (void)renderFrame:(nullable RTCVideoFrame *)frame {
-  if (!_eventSink || !frame) return;
+  if (!_eventSink) {
+    NSLog(@"[FlutterRTCStreamingSink] renderFrame: eventSink is nil");
+    return;
+  }
+  if (!frame) {
+    NSLog(@"[FlutterRTCStreamingSink] renderFrame: frame is nil");
+    return;
+  }
+
+  static dispatch_once_t onceToken;
+  dispatch_once(&onceToken, ^{
+    NSLog(@"[FlutterRTCStreamingSink] First frame received: %dx%d", (int)frame.width, (int)frame.height);
+  });
 
   // Lazy allocation if setSize was not called first
   if (!_pixelBuffer ||
@@ -69,7 +81,10 @@
       (size_t)_bufferSize.height != (size_t)frame.height) {
     [self setSize:CGSizeMake(frame.width, frame.height)];
   }
-  if (!_pixelBuffer) return;
+  if (!_pixelBuffer) {
+    NSLog(@"[FlutterRTCStreamingSink] pixelBuffer allocation failed");
+    return;
+  }
 
   // Convert I420 → BGRA (kCVPixelFormatType_32BGRA = libyuv ARGB)
   id<RTCI420Buffer> i420 = [frame.buffer toI420];
