@@ -71,22 +71,22 @@
   }
   if (!_pixelBuffer) return;
 
-  // Convert I420 → BGRA
+  // Convert I420 → BGRA (kCVPixelFormatType_32BGRA = libyuv ARGB)
   id<RTCI420Buffer> i420 = [frame.buffer toI420];
   CVPixelBufferLockBaseAddress(_pixelBuffer, 0);
   uint8_t *dst = CVPixelBufferGetBaseAddress(_pixelBuffer);
   const size_t stride = CVPixelBufferGetBytesPerRow(_pixelBuffer);
 
-  [RTCYUVHelper I420ToBGRA:i420.dataY
+  [RTCYUVHelper I420ToARGB:i420.dataY
               srcStrideY:i420.strideY
                    srcU:i420.dataU
               srcStrideU:i420.strideU
                    srcV:i420.dataV
               srcStrideV:i420.strideV
-               dstBGRA:dst
-         dstStrideBGRA:(int)stride
-                   width:frame.width
-                  height:frame.height];
+               dstARGB:dst
+         dstStrideARGB:(int)stride
+                 width:frame.width
+                height:frame.height];
 
   NSData *bytes = [NSData dataWithBytes:dst length:stride * frame.height];
   CVPixelBufferUnlockBaseAddress(_pixelBuffer, 0);

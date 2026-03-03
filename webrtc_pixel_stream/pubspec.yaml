@@ -3,7 +3,7 @@ description: >
   A lightweight companion plugin that streams raw BGRA pixel data from a
   WebRTC video track via EventChannel. Designed for panorama_viewer /
   aura_sphere_360 but usable by any Flutter app that needs raw frame bytes.
-version: 0.1.0
+version: 0.1.1
 homepage: https://github.com/Camertronix-Cm/aura_sphere_360
 
 environment:
