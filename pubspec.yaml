@@ -10,13 +10,15 @@ environment:
   flutter: ">=3.3.0"
 
 dependencies:
+  ffi: ^2.1.0
   flutter:
     sdk: flutter
   flutter_cube: ^0.1.1
   dchs_motion_sensors: ^2.0.1
   video_player: ^2.9.2
   flutter_webrtc: ^0.11.7
-  webrtc_pixel_stream: ^0.1.1
+  webrtc_pixel_stream:
+    path: ./webrtc_pixel_stream
 
 dev_dependencies:
   flutter_test:

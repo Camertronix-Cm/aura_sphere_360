@@ -3,15 +3,27 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// An RTCVideoRenderer that converts I420 frames to BGRA and forwards
-/// raw pixel bytes over a FlutterEventChannel.
+/// An RTCVideoRenderer that converts WebRTC frames to BGRA and writes them
+/// directly into a Dart-allocated FFI double-buffer.
 ///
-/// Runs entirely on WebRTC's internal render thread. The EventSink
-/// is dispatched to the main queue for thread safety.
+/// Native side writes pixel data into one of two pre-allocated C buffers
+/// (provided by Dart via FFI pointer addresses), then fires a tiny
+/// EventChannel message with only metadata so Dart knows which buffer to read.
+///
+/// This eliminates all EventChannel pixel serialisation overhead.
 @interface FlutterRTCStreamingSink : NSObject <RTCVideoRenderer>
 
+/// Phase 2+: double-buffered FFI init.
+/// @param trackId       The WebRTC track ID (used for EventChannel naming).
+/// @param messenger     Flutter binary messenger for the EventChannel.
+/// @param bufferA       Pointer to Dart-allocated FFI buffer A.
+/// @param bufferB       Pointer to Dart-allocated FFI buffer B.
+/// @param bufferSize    Size in bytes of each buffer (both must be equal).
 - (instancetype)initWithTrackId:(NSString *)trackId
-                      messenger:(NSObject<FlutterBinaryMessenger> *)messenger;
+                      messenger:(NSObject<FlutterBinaryMessenger> *)messenger
+                  sharedBufferA:(uint8_t *)bufferA
+                  sharedBufferB:(uint8_t *)bufferB
+                     bufferSize:(size_t)bufferSize;
 
 - (void)dispose;
 
