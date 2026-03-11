@@ -414,11 +414,24 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   void _updateTextureFromProvider() async {
-    if (textureProvider == null || !textureProvider!.isReady) return;
+    debugPrint('🔄 [PanoramaState] _updateTextureFromProvider() called');
+    if (textureProvider == null) {
+      debugPrint('🔄 [PanoramaState] textureProvider is null');
+      return;
+    }
+    if (!textureProvider!.isReady) {
+      debugPrint('🔄 [PanoramaState] textureProvider not ready yet');
+      return;
+    }
 
+    debugPrint('🔄 [PanoramaState] Getting current frame...');
     final frame = await textureProvider!.getCurrentFrame();
-    if (frame == null) return;
+    if (frame == null) {
+      debugPrint('🔄 [PanoramaState] No frame available');
+      return;
+    }
 
+    debugPrint('🔄 [PanoramaState] Got frame: ${frame.width}x${frame.height}');
     surface?.mesh.texture = frame;
     surface?.mesh.textureRect = Rect.fromLTWH(
       0,
@@ -426,10 +439,14 @@ class PanoramaState extends State<PanoramaViewer>
       frame.width.toDouble(),
       frame.height.toDouble(),
     );
-    if (scene == null) return;
+    if (scene == null) {
+      debugPrint('🔄 [PanoramaState] Scene is null, cannot update texture');
+      return;
+    }
     scene!.texture = frame;
     scene!.updateTexture();
     widget.onImageLoad?.call();
+    debugPrint('🔄 [PanoramaState] Texture updated successfully');
   }
 
   void _loadTexture(ImageProvider? provider) {
@@ -441,12 +458,20 @@ class PanoramaState extends State<PanoramaViewer>
   }
 
   Future<void> _initializeTextureProvider() async {
-    debugPrint('[PanoramaState] _initializeTextureProvider() called');
+    debugPrint('🟢 [PanoramaState] _initializeTextureProvider() START');
+    debugPrint(
+        '🟢 [PanoramaState] Source types: child=${widget.child != null}, video=${widget.videoUrl != null}, videoCtrl=${widget.videoPlayerController != null}, webrtc=${widget.webrtcRenderer != null}');
+    debugPrint(
+        '🟢 [PanoramaState] useNativeExtraction=${widget.useNativeExtraction}');
 
     // Dispose old provider
-    textureProvider?.removeListener(_updateTextureFromProvider);
-    textureProvider?.dispose();
-    textureProvider = null;
+    if (textureProvider != null) {
+      debugPrint('🟢 [PanoramaState] Disposing old texture provider');
+      textureProvider?.removeListener(_updateTextureFromProvider);
+      textureProvider?.dispose();
+      textureProvider = null;
+      debugPrint('🟢 [PanoramaState] Old texture provider disposed');
+    }
 
     // ── Video ────────────────────────────────────────────────────────────────
     if (widget.videoUrl != null && widget.useNativeExtraction) {
@@ -484,15 +509,30 @@ class PanoramaState extends State<PanoramaViewer>
         widget.useNativeExtraction &&
         widget.webrtcTrackId != null) {
       // Native path: pixel stream from flutter_webrtc fork.
-      debugPrint('[PanoramaState] Creating NativeWebRTCTextureProvider...');
+      debugPrint(
+          '🟠 [PanoramaState] WebRTC native path - Creating NativeWebRTCTextureProvider...');
+      debugPrint(
+          '🟠 [PanoramaState] trackId=${widget.webrtcTrackId}, peerConnectionId=${widget.webrtcPeerConnectionId}');
+
       textureProvider = NativeWebRTCTextureProvider(
         widget.webrtcRenderer!,
         trackId: widget.webrtcTrackId!,
         peerConnectionId: widget.webrtcPeerConnectionId,
       );
+      debugPrint(
+          '🟠 [PanoramaState] NativeWebRTCTextureProvider created, adding listener...');
       textureProvider!.addListener(_updateTextureFromProvider);
-      await textureProvider!.initialize();
-      debugPrint('[PanoramaState] Native WebRTC provider initialized');
+      debugPrint('🟠 [PanoramaState] Listener added, calling initialize()...');
+
+      try {
+        await textureProvider!.initialize();
+        debugPrint(
+            '🟠 [PanoramaState] Native WebRTC provider initialized SUCCESSFULLY');
+      } catch (e, st) {
+        debugPrint(
+            '🔴 [PanoramaState] ERROR initializing Native WebRTC provider: $e');
+        debugPrint('🔴 [PanoramaState] Stack trace: $st');
+      }
     } else if (widget.webrtcRenderer != null) {
       // Legacy path: RepaintBoundary.toImage() screenshot.
       debugPrint('[PanoramaState] Creating legacy WebRTCTextureProvider...');
@@ -520,25 +560,31 @@ class PanoramaState extends State<PanoramaViewer>
     }
 
     if (textureProvider != null) {
+      debugPrint(
+          '🟢 [PanoramaState] textureProvider initialized, calling _updateTextureFromProvider()');
       _updateTextureFromProvider();
+    } else {
+      debugPrint('🟡 [PanoramaState] No textureProvider created');
     }
+    debugPrint('🟢 [PanoramaState] _initializeTextureProvider() COMPLETE');
   }
 
   void _onSceneCreated(Scene scene) {
-    debugPrint('🌐 [PanoramaState] _onSceneCreated called');
+    debugPrint('🌐 [PanoramaState] _onSceneCreated START');
     this.scene = scene;
     scene.camera.near = 1.0;
     scene.camera.far = _radius + 1.0;
     scene.camera.fov = 75;
     scene.camera.zoom = widget.zoom;
     scene.camera.position.setFrom(Vector3(0, 0, 0.1));
+    debugPrint('🌐 [PanoramaState] Scene camera configured');
+
     if ((widget.child != null ||
             widget.videoPlayerController != null ||
             widget.videoUrl != null ||
             widget.webrtcRenderer != null) &&
         surface == null) {
-      debugPrint(
-          '🌐 [PanoramaState] Creating surface mesh and initializing texture provider');
+      debugPrint('🌐 [PanoramaState] About to create surface mesh...');
       final Mesh mesh = generateSphereMesh(
           radius: _radius,
           latSegments: widget.latSegments,
@@ -546,13 +592,23 @@ class PanoramaState extends State<PanoramaViewer>
           croppedArea: widget.croppedArea,
           croppedFullWidth: widget.croppedFullWidth,
           croppedFullHeight: widget.croppedFullHeight);
+      debugPrint('🌐 [PanoramaState] Mesh generated, creating surface object');
       surface = Object(name: 'surface', mesh: mesh, backfaceCulling: false);
 
       // Initialize texture provider
+      debugPrint(
+          '🌐 [PanoramaState] About to call _initializeTextureProvider()');
       _initializeTextureProvider();
+      debugPrint('🌐 [PanoramaState] _initializeTextureProvider() returned');
 
+      debugPrint('🌐 [PanoramaState] Adding surface to scene');
       scene.world.add(surface!);
+      debugPrint('🌐 [PanoramaState] Calling _updateView()');
       _updateView();
+      debugPrint('🌐 [PanoramaState] _onSceneCreated COMPLETE');
+    } else {
+      debugPrint(
+          '🌐 [PanoramaState] Skipping surface creation (no source or surface exists)');
     }
   }
 
@@ -630,6 +686,7 @@ class PanoramaState extends State<PanoramaViewer>
   @override
   void initState() {
     super.initState();
+    debugPrint('🔵 [PanoramaState] initState START');
     latitudeRad = radians(widget.latitude);
     longitudeRad = radians(widget.longitude);
 
@@ -648,6 +705,7 @@ class PanoramaState extends State<PanoramaViewer>
     if (widget.sensorControl != SensorControl.none || _animSpeed != 0) {
       _controller.repeat();
     }
+    debugPrint('🔵 [PanoramaState] initState COMPLETE');
   }
 
   @override
@@ -763,6 +821,7 @@ class PanoramaState extends State<PanoramaViewer>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('🎨 [PanoramaState] build() called');
     Widget pano = Stack(
       children: [
         // Legacy video widget for frame capture (only when using old screenshot path)

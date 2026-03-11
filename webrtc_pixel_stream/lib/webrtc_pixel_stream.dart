@@ -8,4 +8,4 @@
 ///
 /// Usage from Dart is via method/event channels — see
 /// `NativeWebRTCTextureProvider` in `aura_sphere_360` for the Dart wrapper.
-library webrtc_pixel_stream;
+library;
