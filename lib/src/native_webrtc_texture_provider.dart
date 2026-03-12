@@ -52,11 +52,18 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
   bool _decoding = false;
   Map<dynamic, dynamic>? _pendingEvent;
 
+  // Provide a unique sinkId so iOS supports multiple active render sinks
+  // per WebRTC track, avoiding collision when widgets are swapped quickly.
+  static int _sinkCounter = 0;
+  late final String _sinkId;
+
   NativeWebRTCTextureProvider(
     this.renderer, {
     required this.trackId,
     this.peerConnectionId,
-  });
+  }) {
+    _sinkId = 'sink_${DateTime.now().millisecondsSinceEpoch}_${_sinkCounter++}';
+  }
 
   @override
   PanoramaSourceType get sourceType => PanoramaSourceType.webrtc;
@@ -82,7 +89,7 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
   @override
   Future<void> initialize() async {
     debugPrint(
-        '🔵 [NativeWebRTCTextureProvider] initialize() START — track: $trackId');
+        '🔵 [NativeWebRTCTextureProvider] initialize() START — track: $trackId, sink: $_sinkId');
 
     try {
       // Allocate double-buffer before calling native so the addresses
@@ -94,6 +101,7 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
       final result = await _pixelStreamMethod
           .invokeMapMethod<String, dynamic>('createPixelStream', {
         'trackId': trackId,
+        'sinkId': _sinkId,
         'peerConnectionId': peerConnectionId,
         'memoryAddressA': _sharedBufferA!.address,
         'memoryAddressB': _sharedBufferB!.address,
@@ -186,7 +194,11 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
   // ── Public API ─────────────────────────────────────────────────────────
 
   @override
-  Future<ui.Image?> getCurrentFrame() async => _currentFrame;
+  // Clone the image so the caller gets an independent reference-counted handle.
+  // The provider disposes its own _currentFrame on every new frame; if we
+  // returned _currentFrame directly the caller would hold a dangling reference
+  // and any subsequent dispose() on it would trigger the assertion crash.
+  Future<ui.Image?> getCurrentFrame() async => _currentFrame?.clone();
 
   // ── Disposal ───────────────────────────────────────────────────────────
 
@@ -197,7 +209,7 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     _sub = null;
     _currentFrame?.dispose();
     _currentFrame = null;
-    _pixelStreamMethod.invokeMethod('disposePixelStream', {'trackId': trackId});
+    _pixelStreamMethod.invokeMethod('disposePixelStream', {'trackId': trackId, 'sinkId': _sinkId});
     _freeBuffers();
     super.dispose();
     debugPrint('🗑️ [NativeWebRTCTextureProvider] Dispose complete');

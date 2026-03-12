@@ -21,7 +21,7 @@
   int                  _writeIndex;   // 0 = write to A next, 1 = write to B next
 }
 
-- (instancetype)initWithTrackId:(NSString *)trackId
+- (instancetype)initWithSinkId:(NSString *)sinkId
                       messenger:(NSObject<FlutterBinaryMessenger> *)messenger
                   sharedBufferA:(uint8_t *)bufferA
                   sharedBufferB:(uint8_t *)bufferB
@@ -36,7 +36,7 @@
   _bufferSize       = CGSizeZero;
 
   NSString *name = [NSString stringWithFormat:
-      @"webrtc_pixel_stream/frames/%@", trackId];
+      @"webrtc_pixel_stream/frames/%@", sinkId];
   _channel = [FlutterEventChannel eventChannelWithName:name
                                       binaryMessenger:messenger];
   [_channel setStreamHandler:self];
@@ -156,12 +156,15 @@
       };
       vImage_YpCbCrToARGB info;
       vImage_YpCbCrPixelRange pixelRange = {0, 128, 255, 255, 255, 1, 255, 0};
+      // Map to BGRA8888 directly since our memory layout relies on BGRA!
       vImageConvert_YpCbCrToARGB_GenerateConversion(
         kvImage_YpCbCrToARGBMatrix_ITU_R_709_2,
         &pixelRange, &info,
         kvImage420Yp8_CbCr8, kvImageARGB8888, kvImageNoFlags
       );
-      vImageConvert_420Yp8_CbCr8ToARGB8888(&src_y, &src_uv, &dst, &info, NULL, 255, kvImageNoFlags);
+      // We must map it specifically as BGRA (B G R A = 3 2 1 0 from ARGB)
+      uint8_t permuteMap[4] = {3, 2, 1, 0}; 
+      vImageConvert_420Yp8_CbCr8ToARGB8888(&src_y, &src_uv, &dst, &info, permuteMap, 255, kvImageNoFlags);
     } else {
       NSLog(@"[FlutterRTCStreamingSink] Unsupported pixel format: %d", (int)pixelFormat);
     }

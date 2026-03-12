@@ -19,7 +19,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// @param bufferA       Pointer to Dart-allocated FFI buffer A.
 /// @param bufferB       Pointer to Dart-allocated FFI buffer B.
 /// @param bufferSize    Size in bytes of each buffer (both must be equal).
-- (instancetype)initWithTrackId:(NSString *)trackId
+- (instancetype)initWithSinkId:(NSString *)sinkId
                       messenger:(NSObject<FlutterBinaryMessenger> *)messenger
                   sharedBufferA:(uint8_t *)bufferA
                   sharedBufferB:(uint8_t *)bufferB

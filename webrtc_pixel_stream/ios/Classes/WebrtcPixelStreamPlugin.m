@@ -37,6 +37,7 @@ static const int kMaxTrackLookupRetries = 20;
 
 - (void)handleCreatePixelStream:(NSDictionary *)args result:(FlutterResult)result {
   NSString *trackId = args[@"trackId"];
+  NSString *sinkId = args[@"sinkId"];
   id rawPcId = args[@"peerConnectionId"];
 
   if (!trackId || [trackId isKindOfClass:[NSNull class]] || trackId.length == 0) {
@@ -46,10 +47,14 @@ static const int kMaxTrackLookupRetries = 20;
     return;
   }
 
+  if (!sinkId || [sinkId isKindOfClass:[NSNull class]] || sinkId.length == 0) {
+    sinkId = trackId; // Fallback
+  }
+
   // Idempotency check
-  if (_sinks[trackId]) {
-    NSLog(@"[WebrtcPixelStream] Stream already exists for track: %@", trackId);
-    NSString *channelName = [NSString stringWithFormat:@"webrtc_pixel_stream/frames/%@", trackId];
+  if (_sinks[sinkId]) {
+    NSLog(@"[WebrtcPixelStream] Stream already exists for sink: %@", sinkId);
+    NSString *channelName = [NSString stringWithFormat:@"webrtc_pixel_stream/frames/%@", sinkId];
     result(@{@"channelName" : channelName});
     return;
   }
@@ -92,17 +97,17 @@ static const int kMaxTrackLookupRetries = 20;
         sharedBufferA, sharedBufferB, bufferSize);
 
   FlutterRTCStreamingSink *sink =
-      [[FlutterRTCStreamingSink alloc] initWithTrackId:trackId
+      [[FlutterRTCStreamingSink alloc] initWithSinkId:sinkId
                                              messenger:_messenger
                                          sharedBufferA:sharedBufferA
                                          sharedBufferB:sharedBufferB
                                             bufferSize:bufferSize];
 
-  _sinks[trackId] = sink;
+  _sinks[sinkId] = sink;
 
   // Return the channel name immediately so Dart can start listening.
   // The actual track attachment happens asynchronously with retries below.
-  NSString *channelName = [NSString stringWithFormat:@"webrtc_pixel_stream/frames/%@", trackId];
+  NSString *channelName = [NSString stringWithFormat:@"webrtc_pixel_stream/frames/%@", sinkId];
   result(@{@"channelName" : channelName});
 
   // Delay the first lookup slightly — flutter_webrtc registers remote tracks
@@ -112,6 +117,7 @@ static const int kMaxTrackLookupRetries = 20;
                  dispatch_get_main_queue(), ^{
     [self attachRenderer:sink
                  trackId:trackId
+                  sinkId:sinkId
       peerConnectionId:peerConnectionId
            webrtcPlugin:webrtcPlugin
             retryCount:0];
@@ -123,13 +129,14 @@ static const int kMaxTrackLookupRetries = 20;
 /// the race between our call and flutter_webrtc registering the remote track.
 - (void)attachRenderer:(FlutterRTCStreamingSink *)sink
                trackId:(NSString *)trackId
+                sinkId:(NSString *)sinkId
     peerConnectionId:(NSString * _Nullable)peerConnectionId
          webrtcPlugin:(FlutterWebRTCPlugin *)webrtcPlugin
           retryCount:(int)retryCount {
 
   // If the sink was disposed while we were waiting, bail out.
-  if (!self->_sinks[trackId]) {
-    NSLog(@"[WebrtcPixelStream] Sink removed before attachment, aborting for track: %@", trackId);
+  if (!self->_sinks[sinkId]) {
+    NSLog(@"[WebrtcPixelStream] Sink removed before attachment, aborting for sink: %@", sinkId);
     return;
   }
 
@@ -163,15 +170,15 @@ static const int kMaxTrackLookupRetries = 20;
             (long)videoTrack.readyState, retryCount + 1, kMaxTrackLookupRetries);
       // Fall through to the retry block below
     } else {
-      self->_tracks[trackId] = videoTrack;
+      self->_tracks[sinkId] = videoTrack;
       @try {
         [videoTrack addRenderer:sink];
-        NSLog(@"[WebrtcPixelStream] ✅ Renderer attached to track: %@", trackId);
+        NSLog(@"[WebrtcPixelStream] ✅ Renderer attached to track: %@ (sink: %@)", trackId, sinkId);
       } @catch (NSException *exception) {
         NSLog(@"[WebrtcPixelStream] ❌ Exception attaching renderer: %@ – %@",
               exception.name, exception.reason);
-        [self->_tracks removeObjectForKey:trackId];
-        [self->_sinks removeObjectForKey:trackId];
+        [self->_tracks removeObjectForKey:sinkId];
+        [self->_sinks removeObjectForKey:sinkId];
       }
       return;
     }
@@ -185,6 +192,7 @@ static const int kMaxTrackLookupRetries = 20;
                    dispatch_get_main_queue(), ^{
       [self attachRenderer:sink
                    trackId:trackId
+                    sinkId:sinkId
         peerConnectionId:peerConnectionId
              webrtcPlugin:webrtcPlugin
               retryCount:retryCount + 1];
@@ -192,20 +200,23 @@ static const int kMaxTrackLookupRetries = 20;
   } else {
     NSLog(@"[WebrtcPixelStream] ❌ Gave up waiting for track: %@ after %d attempts",
           trackId, kMaxTrackLookupRetries);
-    [self->_sinks removeObjectForKey:trackId];
+    [self->_sinks removeObjectForKey:sinkId];
   }
 }
 
 - (void)handleDisposePixelStream:(NSDictionary *)args result:(FlutterResult)result {
   id rawTrackId = args[@"trackId"];
-  if (!rawTrackId || [rawTrackId isKindOfClass:[NSNull class]]) {
+  id rawSinkId = args[@"sinkId"];
+  NSString *trackId = [rawTrackId isKindOfClass:[NSString class]] ? rawTrackId : nil;
+  NSString *sinkId = [rawSinkId isKindOfClass:[NSString class]] ? rawSinkId : trackId;
+
+  if (!sinkId) {
     result(nil);
     return;
   }
-  NSString *trackId = (NSString *)rawTrackId;
 
-  FlutterRTCStreamingSink *sink = _sinks[trackId];
-  RTCVideoTrack *videoTrack = _tracks[trackId];
+  FlutterRTCStreamingSink *sink = _sinks[sinkId];
+  RTCVideoTrack *videoTrack = _tracks[sinkId];
 
   if (sink && videoTrack) {
     @try {
@@ -216,8 +227,8 @@ static const int kMaxTrackLookupRetries = 20;
     [sink dispose];
   }
 
-  [_sinks removeObjectForKey:trackId];
-  [_tracks removeObjectForKey:trackId];
+  [_sinks removeObjectForKey:sinkId];
+  [_tracks removeObjectForKey:sinkId];
   result(nil);
 }
 
