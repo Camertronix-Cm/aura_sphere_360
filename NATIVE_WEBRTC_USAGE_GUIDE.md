@@ -240,8 +240,8 @@ class _Aura360PlayerState extends State<Aura360Player> {
         final c = data['candidate'] as Map<String, dynamic>;
         final candidate = RTCIceCandidate(
           c['candidate'] as String,
-          c['sdpMid'] as String?,
-          c['sdpMLineIndex'] as int?,
+          (c['sdpMid'] as String?) ?? '0',
+          (c['sdpMLineIndex'] as int?) ?? 0,
         );
         if (_remoteDescriptionSet) {
           await _peerConnection!.addCandidate(candidate);
