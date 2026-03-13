@@ -1,3 +1,12 @@
+## 2.3.0
+* **PERFORMANCE**: Upgraded to webrtc_pixel_stream 0.2.0 with FFI-based double-buffered shared memory
+  * Zero-copy pixel transfer eliminates EventChannel serialization overhead
+  * ~80% CPU reduction for 4K WebRTC streams
+  * Double-buffering prevents frame tearing at high framerates
+  * Fixes black screen with software-decoded VP8/VP9 codecs
+* **BREAKING**: Requires webrtc_pixel_stream ^0.2.0
+* iOS only (Android FFI path pending)
+
 ## 2.0.1
 * **FIX**: Updated webrtc_pixel_stream to 0.1.1 - fixes red/blue channel swap in WebRTC frames
 
