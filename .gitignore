@@ -29,3 +29,8 @@ doc/api/
 # macOS
 .DS_Store
 **/.DS_Store
+
+# Android
+android/.gradle/
+android/build/
+android/local.properties
