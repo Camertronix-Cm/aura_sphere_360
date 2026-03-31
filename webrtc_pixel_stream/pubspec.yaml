@@ -19,3 +19,6 @@ flutter:
     platforms:
       ios:
         pluginClass: WebrtcPixelStreamPlugin
+      android:
+        package: com.camertronix.webrtc_pixel_stream
+        pluginClass: WebrtcPixelStreamPlugin
