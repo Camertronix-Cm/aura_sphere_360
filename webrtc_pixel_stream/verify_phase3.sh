@@ -6,7 +6,7 @@ echo "🔍 Phase 3 Verification — FFI Double-Buffer"
 echo "============================================"
 echo ""
 
-PLUGIN_DIR="aura_sphere_360/webrtc_pixel_stream"
+PLUGIN_DIR="."
 PLUGIN_FILE="$PLUGIN_DIR/android/src/main/kotlin/com/camertronix/webrtc_pixel_stream/WebrtcPixelStreamPlugin.kt"
 SINK_FILE="$PLUGIN_DIR/android/src/main/kotlin/com/camertronix/webrtc_pixel_stream/FlutterRTCStreamingSink.kt"
 CPP_FILE="$PLUGIN_DIR/android/src/main/cpp/webrtc_pixel_stream.cpp"

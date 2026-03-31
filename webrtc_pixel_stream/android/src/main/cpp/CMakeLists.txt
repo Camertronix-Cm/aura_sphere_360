@@ -17,7 +17,7 @@ add_library(
 find_library(log-lib log)
 target_link_libraries(webrtc_pixel_stream ${log-lib})
 
-# Optional: Enable NEON optimizations on ARM
-if(ANDROID_ABI STREQUAL "armeabi-v7a" OR ANDROID_ABI STREQUAL "arm64-v8a")
+# Optional: Enable NEON optimizations on ARMv7 (arm64 has it by default)
+if(ANDROID_ABI STREQUAL "armeabi-v7a")
     target_compile_options(webrtc_pixel_stream PRIVATE -mfpu=neon)
 endif()
