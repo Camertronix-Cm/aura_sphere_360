@@ -79,8 +79,7 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     _allocatedBytes = 4000 * 4000 * 4;
     _sharedBufferA = calloc<ffi.Uint8>(_allocatedBytes);
     _sharedBufferB = calloc<ffi.Uint8>(_allocatedBytes);
-    debugPrint(
-        '🔵 [NativeWebRTCTextureProvider] FFI buffers allocated — '
+    debugPrint('🔵 [NativeWebRTCTextureProvider] FFI buffers allocated — '
         'A: 0x${_sharedBufferA!.address.toRadixString(16)}  '
         'B: 0x${_sharedBufferB!.address.toRadixString(16)}  '
         'size: $_allocatedBytes bytes each');
@@ -92,9 +91,19 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
         '🔵 [NativeWebRTCTextureProvider] initialize() START — track: $trackId, sink: $_sinkId');
 
     try {
-      // Allocate double-buffer before calling native so the addresses
-      // are valid when native first tries to write.
-      await _allocateSharedMemory();
+      // Only allocate FFI buffers on platforms that support it
+      final bool useFFI = defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android;
+
+      if (useFFI) {
+        // Allocate double-buffer before calling native so the addresses
+        // are valid when native first tries to write.
+        await _allocateSharedMemory();
+      } else {
+        debugPrint(
+            '🔵 [NativeWebRTCTextureProvider] Platform ${defaultTargetPlatform.name} '
+            'does not support FFI — will use legacy EventChannel bytes path');
+      }
 
       debugPrint('🔵 [NativeWebRTCTextureProvider] Calling createPixelStream…');
 
@@ -103,9 +112,9 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
         'trackId': trackId,
         'sinkId': _sinkId,
         'peerConnectionId': peerConnectionId,
-        'memoryAddressA': _sharedBufferA!.address,
-        'memoryAddressB': _sharedBufferB!.address,
-        'memorySize': _allocatedBytes,
+        if (_sharedBufferA != null) 'memoryAddressA': _sharedBufferA!.address,
+        if (_sharedBufferB != null) 'memoryAddressB': _sharedBufferB!.address,
+        if (_sharedBufferA != null) 'memorySize': _allocatedBytes,
       });
 
       debugPrint(
@@ -129,10 +138,12 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
 
       debugPrint('🟢 [NativeWebRTCTextureProvider] Setup complete');
     } on PlatformException catch (e) {
-      debugPrint('🔴 [NativeWebRTCTextureProvider] PlatformException: ${e.message}');
+      debugPrint(
+          '🔴 [NativeWebRTCTextureProvider] PlatformException: ${e.message}');
       _freeBuffers();
     } on MissingPluginException catch (e) {
-      debugPrint('🔴 [NativeWebRTCTextureProvider] MissingPluginException: ${e.message}');
+      debugPrint(
+          '🔴 [NativeWebRTCTextureProvider] MissingPluginException: ${e.message}');
       _freeBuffers();
     } catch (e, st) {
       debugPrint('🔴 [NativeWebRTCTextureProvider] Unexpected error: $e\n$st');
@@ -173,8 +184,7 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
         _currentFrame = img;
         if (!_ready) {
           _ready = true;
-          debugPrint(
-              '🟢 [NativeWebRTCTextureProvider] First frame ready: '
+          debugPrint('🟢 [NativeWebRTCTextureProvider] First frame ready: '
               '${img.width}x${img.height}');
         }
         notifyListeners();
@@ -209,7 +219,8 @@ class NativeWebRTCTextureProvider extends PanoramaTextureProvider {
     _sub = null;
     _currentFrame?.dispose();
     _currentFrame = null;
-    _pixelStreamMethod.invokeMethod('disposePixelStream', {'trackId': trackId, 'sinkId': _sinkId});
+    _pixelStreamMethod.invokeMethod(
+        'disposePixelStream', {'trackId': trackId, 'sinkId': _sinkId});
     _freeBuffers();
     super.dispose();
     debugPrint('🗑️ [NativeWebRTCTextureProvider] Dispose complete');

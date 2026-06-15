@@ -5,7 +5,7 @@
 - **PERFORMANCE:** Eliminated EventChannel serialization overhead (~80% CPU reduction for 4K streams)
 - **NEW:** Double-buffering prevents frame tearing during high-framerate WebRTC streams
 - **FIX:** Black screen issue with software-decoded codecs now resolved
-- iOS only (Android FFI path pending)
+- **NEW:** Full Android support via reflection-based WebRTC track lookup, integrating legacy EventChannel and native FFI double-buffered fallback paths.
 
 ## 0.1.1
 

@@ -20,7 +20,7 @@ This plugin is used internally by [aura_sphere_360](https://pub.dev/packages/aur
 | Platform | Status |
 |----------|--------|
 | iOS      | ✅     |
-| Android  | 🚧 Planned |
+| Android  | ✅     |
 | Web      | ❌ N/A |
 
 ## Requirements

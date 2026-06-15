@@ -288,7 +288,7 @@ class _Aura360PlayerState extends State<Aura360Player> {
 | Symptom | Cause | Fix |
 |---|---|---|
 | Black sphere, no frames | `webrtcTrackId` is null when AuraSphere builds | Ensure `setState` is called after capturing the track ID in `onTrack` |
-| Debug log: `MissingPluginException` | `webrtc_pixel_stream` not registered | Make sure `aura_sphere_360: ^2.0.0` is in your pubspec and you ran `pod install` |
+| Debug log: `MissingPluginException` | `webrtc_pixel_stream` not registered | Make sure `aura_sphere_360: ^2.0.0` is in your pubspec and you ran `pod install` (iOS) or `flutter clean` (Android) |
 | Debug log: `TRACK_NOT_FOUND` | Track ID is wrong or track not yet added | Verify `event.track.id` is non-null and `setState` is called after `onTrack` fires |
 | Debug log: `NOT_READY` | `flutter_webrtc` plugin not initialized yet | Ensure the WebRTC peer connection is created before AuraSphere tries to use the track |
-| Works on Android but not iOS | `webrtc_pixel_stream` only supports iOS currently | Set `useNativeExtraction: false` for Android, or wait for Android support |
+| Low frame rate on Android | Using legacy EventChannel bytes path | This is expected for Phase A. Phase B (FFI) will improve performance to 30-60 fps |
